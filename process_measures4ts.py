@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import json
 
 def calcular_ts(archivo_csv):
     if not os.path.exists(archivo_csv):
@@ -41,7 +42,6 @@ def calcular_ts(archivo_csv):
     sd_m2 = (np.pi * ((diametro_cm / 100.0) / 2)**2)
 
     # Convertir Voltajes a Impedancia (Z) midiendo en terminales
-    # Z = Rs * (V_spk / (V_total - V_spk))
     z_aire = rs_val * (v_aire / (v_total - v_aire))
     z_masa = rs_val * (v_masa / (v_total - v_masa))
 
@@ -65,7 +65,6 @@ def calcular_ts(archivo_csv):
     z_right = z_aire[idx_fs:]
 
     f1 = np.interp(z_target, z_left, freqs_left)
-    # Para la derecha, interp requiere arreglo monótonamente creciente, así que invertimos
     f2 = np.interp(z_target, z_right[::-1], freqs_right[::-1])
 
     # Cálculos Thiele-Small
@@ -100,6 +99,24 @@ def calcular_ts(archivo_csv):
     print(f"Vas (Vol. Equiv) : {vas_litros:.2f} Litros")
     print(f"B·l (Fuerza Motor): {bl:.2f} T·m")
     print("="*40)
+
+    # Exportación JSON para integration con measures2panels.py
+    ts_export = {
+        "Fs": round(float(fs), 2),
+        "Qts": round(float(qts), 3),
+        "Vas": round(float(vas_litros), 2),
+        "Qms": round(float(qms), 3),
+        "Qes": round(float(qes), 3),
+        "Re": round(float(re_val), 2),
+        "Sd": round(float(sd_m2 * 10000), 2)  # Exportado en cm2 por estándar
+    }
+
+    try:
+        with open('parametros_ts.json', 'w', encoding='utf-8') as json_file:
+            json.dump(ts_export, json_file, indent=4)
+        print("\n[+] Parámetros exportados exitosamente a 'parametros_ts.json'")
+    except IOError as e:
+        print(f"\n[!] Error crítico al escribir el archivo JSON: {e}")
 
 if __name__ == "__main__":
     archivo = input("Ingresa el nombre del archivo CSV generado: ").strip()

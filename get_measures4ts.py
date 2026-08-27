@@ -124,30 +124,55 @@ async def main():
         # --- FASE 2 ---
         v_masa = await ejecutar_barrido(frecuencias, "Masa Agregada (Fs_mass)")
 
-        # --- PARÁMETROS FINALES ---
-        print("\n--- Parámetros del Parlante ---")
+# --- PARÁMETROS FINALES Y ENTORNO ---
+        print("\n--- Parámetros del Parlante y Entorno ---")
         nombre_parlante = input("Nombre del parlante: ").strip()
         re_val = input("Resistencia DC (Re) [Ohms]: ").strip()
         rs_val = input("Resistencia de sensado (Rs) [Ohms]: ").strip()
         masa_val = input("Masa agregada [gramos]: ").strip()
-
-        # --- RESOLUCIÓN DE RUTA ABSOLUTA ---
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        filename = f"thiele_small_{nombre_parlante.replace(' ', '_')}.csv"
-        filepath = os.path.join(script_dir, filename)
         
-        # --- GUARDAR CSV ---
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(f"# Parlante: {nombre_parlante}\n")
-            f.write(f"# Re: {re_val} Ohms\n")
-            f.write(f"# Rs: {rs_val} Ohms\n")
-            f.write(f"# Masa Agregada: {masa_val} g\n")
-            f.write("Frecuencia_Hz,V_AireLibre,V_MasaAgregada\n")
-            
-            for f_hz, v_a, v_m in zip(frecuencias, v_aire, v_masa):
-                f.write(f"{f_hz:.4f},{v_a:.4f},{v_m:.4f}\n")
+        print("\n[i] Presiona ENTER para usar los valores estándar (20°C, 0m, 1.0V) o ingresa tus valores:")
+        diametro_cm = input("Diámetro efectivo del cono (Sd) [cm]: ").strip()
+        temp_c = input("Temperatura ambiente [°C] (ej. 20): ").strip() or "20.0"
+        altitud_m = input("Altitud sobre el nivel del mar [m] (ej. 600): ").strip() or "0.0"
+        v_total = input("Voltaje total del amplificador [V] (ej. 1.0): ").strip() or "1.0"
 
-        print(f"\nMatriz de datos Thiele-Small generada con éxito en '{filepath}'.")
+        # --- RESOLUCIÓN DE RUTAS ---
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        filename_personal = f"thiele_small_{nombre_parlante.replace(' ', '_')}.csv"
+        filepath_personal = os.path.join(script_dir, filename_personal)
+        filepath_pipeline = os.path.join(script_dir, "mediciones_exportadas.csv")
+        
+        # --- GENERACIÓN DE CABECERAS Y GUARDADO ---
+        cabeceras = (
+            f"# Parlante: {nombre_parlante}\n"
+            f"# Re: {re_val} Ohms\n"
+            f"# Rs: {rs_val} Ohms\n"
+            f"# Masa Agregada: {masa_val} g\n"
+            f"# Diametro: {diametro_cm} cm\n"
+            f"# Temp: {temp_c} C\n"
+            f"# Altitud: {altitud_m} m\n"
+            f"# V_total: {v_total} V\n"
+            "Frecuencia,V_AireLibre,V_MasaAgregada\n"
+        )
+        
+        lineas_datos = [
+            f"{f_hz:.4f},{v_a:.4f},{v_m:.4f}\n" 
+            for f_hz, v_a, v_m in zip(frecuencias, v_aire, v_masa)
+        ]
+
+        # Guardar copia para bitácora personal
+        with open(filepath_personal, "w", encoding="utf-8") as f:
+            f.write(cabeceras)
+            f.writelines(lineas_datos)
+            
+        # Guardar copia estandarizada para el pipeline automático
+        with open(filepath_pipeline, "w", encoding="utf-8") as f:
+            f.write(cabeceras)
+            f.writelines(lineas_datos)
+
+        print(f"\n[+] Matriz exportada a '{filepath_personal}'")
+        print(f"[+] Archivo puente '{filepath_pipeline}' actualizado para el Pipeline.")
 
 if __name__ == "__main__":
     asyncio.run(main())

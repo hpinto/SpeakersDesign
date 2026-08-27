@@ -1,5 +1,6 @@
 import asyncio
 import os
+from datetime import datetime
 from bleak import BleakScanner, BleakClient
 
 START_FREQ = 20.0
@@ -17,7 +18,6 @@ async def notification_handler(sender, data: bytearray):
     global ultimo_voltaje
     try:
         if len(data) >= 6:
-            # Matemática sin signo obligatoria para RMS AC
             raw_val16 = data[4] + (data[5] * 256)
             byte_estado = data[0]
             
@@ -124,7 +124,7 @@ async def main():
         # --- FASE 2 ---
         v_masa = await ejecutar_barrido(frecuencias, "Masa Agregada (Fs_mass)")
 
-# --- PARÁMETROS FINALES Y ENTORNO ---
+        # --- PARÁMETROS FINALES Y ENTORNO ---
         print("\n--- Parámetros del Parlante y Entorno ---")
         nombre_parlante = input("Nombre del parlante: ").strip()
         re_val = input("Resistencia DC (Re) [Ohms]: ").strip()
@@ -139,9 +139,9 @@ async def main():
 
         # --- RESOLUCIÓN DE RUTAS ---
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        filename_personal = f"thiele_small_{nombre_parlante.replace(' ', '_')}.csv"
+        ts_str = datetime.now().strftime("%Y%m%d%H%M")
+        filename_personal = f"thiele_small_{nombre_parlante.replace(' ', '_')}_{ts_str}.csv"
         filepath_personal = os.path.join(script_dir, filename_personal)
-        filepath_pipeline = os.path.join(script_dir, "mediciones_exportadas.csv")
         
         # --- GENERACIÓN DE CABECERAS Y GUARDADO ---
         cabeceras = (
@@ -153,7 +153,7 @@ async def main():
             f"# Temp: {temp_c} C\n"
             f"# Altitud: {altitud_m} m\n"
             f"# V_total: {v_total} V\n"
-            "Frecuencia,V_AireLibre,V_MasaAgregada\n"
+            "# Frecuencia,V_AireLibre,V_MasaAgregada\n" 
         )
         
         lineas_datos = [
@@ -161,18 +161,11 @@ async def main():
             for f_hz, v_a, v_m in zip(frecuencias, v_aire, v_masa)
         ]
 
-        # Guardar copia para bitácora personal
         with open(filepath_personal, "w", encoding="utf-8") as f:
             f.write(cabeceras)
             f.writelines(lineas_datos)
             
-        # Guardar copia estandarizada para el pipeline automático
-        with open(filepath_pipeline, "w", encoding="utf-8") as f:
-            f.write(cabeceras)
-            f.writelines(lineas_datos)
-
-        print(f"\n[+] Matriz exportada a '{filepath_personal}'")
-        print(f"[+] Archivo puente '{filepath_pipeline}' actualizado para el Pipeline.")
+        print(f"\n[+] Matriz exportada a '{filepath_personal}' lista para el Pipeline.")
 
 if __name__ == "__main__":
     asyncio.run(main())

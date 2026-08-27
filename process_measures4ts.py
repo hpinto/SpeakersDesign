@@ -1,14 +1,17 @@
 import numpy as np
 import os
 import json
+import sys
 
 def calcular_ts(archivo_csv):
     if not os.path.exists(archivo_csv):
         print(f"Error: El archivo {archivo_csv} no existe.")
         return
 
-    # Extraer metadatos del CSV
+    # Extraer metadatos completos del CSV automáticamente
     re_val, rs_val, masa_val = 0.0, 0.0, 0.0
+    diametro_cm, temp_c, altitud_m, v_total = 0.0, 20.0, 0.0, 1.0
+    
     with open(archivo_csv, 'r', encoding='utf-8') as f:
         for linea in f:
             if linea.startswith("# Re:"):
@@ -17,22 +20,20 @@ def calcular_ts(archivo_csv):
                 rs_val = float(linea.split(":")[1].replace("Ohms", "").strip())
             elif linea.startswith("# Masa Agregada:"):
                 masa_val = float(linea.split(":")[1].replace("g", "").strip()) / 1000.0  # Pasar a kg
+            elif linea.startswith("# Diametro:"):
+                diametro_cm = float(linea.split(":")[1].replace("cm", "").strip())
+            elif linea.startswith("# Temp:"):
+                temp_c = float(linea.split(":")[1].replace("C", "").strip())
+            elif linea.startswith("# Altitud:"):
+                altitud_m = float(linea.split(":")[1].replace("m", "").strip())
+            elif linea.startswith("# V_total:"):
+                v_total = float(linea.split(":")[1].replace("V", "").strip())
 
-    # Cargar datos de la matriz
-    datos = np.loadtxt(archivo_csv, delimiter=',', comments='#', skiprows=1)
+    # Cargar datos de la matriz. Numpy ignorará automáticamente todas las líneas con '#'
+    datos = np.loadtxt(archivo_csv, delimiter=',', comments='#')
     freqs = datos[:, 0]
     v_aire = datos[:, 1]
     v_masa = datos[:, 2]
-
-    print("\n--- Constantes Atmosféricas y del Entorno ---")
-    try:
-        v_total = float(input("Voltaje total del amplificador (V_total) [V]: ").strip())
-        diametro_cm = float(input("Diámetro efectivo del cono (incl. mitad de suspensión) [cm]: ").strip())
-        temp_c = float(input("Temperatura ambiente [°C]: ").strip())
-        altitud_m = float(input("Altitud sobre el nivel del mar [m]: ").strip())
-    except ValueError:
-        print("Entrada inválida. Abortando.")
-        return
 
     # Física Atmosférica
     p_presion = 101325 * (1 - (0.0065 * altitud_m) / 288.15)**5.255
@@ -41,24 +42,22 @@ def calcular_ts(archivo_csv):
     
     sd_m2 = (np.pi * ((diametro_cm / 100.0) / 2)**2)
 
-    # Convertir Voltajes a Impedancia (Z) midiendo en terminales
+    # Convertir Voltajes a Impedancia (Z)
     z_aire = rs_val * (v_aire / (v_total - v_aire))
     z_masa = rs_val * (v_masa / (v_total - v_masa))
 
-    # Identificar Fs (Pico de impedancia en aire libre)
+    # Identificar Fs
     idx_fs = np.argmax(z_aire)
     fs = freqs[idx_fs]
     z_max = z_aire[idx_fs]
 
-    # Identificar Fsm (Pico de impedancia con masa agregada)
+    # Identificar Fsm
     idx_fsm = np.argmax(z_masa)
     fsm = freqs[idx_fsm]
 
-    # Cálculo de r0 y puntos a -3dB
     r0 = z_max / re_val
     z_target = re_val * np.sqrt(r0)
 
-    # Dividir curva para interpolar F1 (izquierda de Fs) y F2 (derecha de Fs)
     freqs_left = freqs[:idx_fs+1]
     z_left = z_aire[:idx_fs+1]
     freqs_right = freqs[idx_fs:]
@@ -108,7 +107,7 @@ def calcular_ts(archivo_csv):
         "Qms": round(float(qms), 3),
         "Qes": round(float(qes), 3),
         "Re": round(float(re_val), 2),
-        "Sd": round(float(sd_m2 * 10000), 2)  # Exportado en cm2 por estándar
+        "Sd": round(float(sd_m2 * 10000), 2)  
     }
 
     try:
@@ -119,5 +118,8 @@ def calcular_ts(archivo_csv):
         print(f"\n[!] Error crítico al escribir el archivo JSON: {e}")
 
 if __name__ == "__main__":
-    archivo = input("Ingresa el nombre del archivo CSV generado: ").strip()
+    if len(sys.argv) > 1:
+        archivo = sys.argv[1]
+    else:
+        archivo = input("Ingresa el nombre del archivo CSV generado: ").strip()
     calcular_ts(archivo)

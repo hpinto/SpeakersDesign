@@ -1,8 +1,9 @@
 import subprocess
 import os
 import sys
+import glob
 
-def ejecutar_script(nombre_script):
+def ejecutar_script(nombre_script, args=None):
     print(f"\n" + "="*50)
     print(f"[+] Iniciando etapa: {nombre_script}")
     print("="*50)
@@ -12,8 +13,10 @@ def ejecutar_script(nombre_script):
         return False
         
     try:
-        # Ejecuta el script usando el mismo intérprete de Python activo
-        resultado = subprocess.run([sys.executable, nombre_script], check=True)
+        cmd = [sys.executable, nombre_script]
+        if args:
+            cmd.extend(args)
+        resultado = subprocess.run(cmd, check=True)
         return resultado.returncode == 0
     except subprocess.CalledProcessError as e:
         print(f"[!] Error en la ejecución de {nombre_script} (Código de salida: {e.returncode})")
@@ -34,27 +37,32 @@ def main():
     print("=== Pipeline Maestro de Ingeniería Acústica EnduraLab ===")
     print("Secuencia: Adquisición -> Procesamiento TS -> Cálculo de Paneles (Slotted Port)\n")
     
-    # Etapa 1: Adquisición de datos con get_measures4ts.py
+    # Etapa 1: Adquisición de datos
     script_1 = "get_measures4ts.py"
     if not ejecutar_script(script_1):
         print("\n[X] Pipeline abortado en la Etapa 1 (Adquisición de Medidas).")
         return
         
-    # Validar que se generó un archivo CSV de salida estándar (asumiendo convención o entrada del script)
-    # Nota: Si get_measures4ts pide el nombre por input, el pipeline puede requerir un archivo estandarizado.
+    # Buscar el CSV recién generado
+    archivos_csv = glob.glob("thiele_small_*.csv")
+    if not archivos_csv:
+        print("\n[X] Pipeline abortado: No se detectó la matriz CSV exportada en el directorio.")
+        return
+        
+    latest_csv = max(archivos_csv, key=os.path.getmtime)
+    print(f"[i] Matriz detectada: {latest_csv}")
     
-    # Etapa 2: Procesamiento matemático de Thiele-Small con process_measures4ts.py
+    # Etapa 2: Procesamiento matemático de Thiele-Small
     script_2 = "process_measures4ts.py"
-    if not ejecutar_script(script_2):
+    if not ejecutar_script(script_2, args=[latest_csv]):
         print("\n[X] Pipeline abortado en la Etapa 2 (Procesamiento de Parámetros TS).")
         return
         
-    # Validación estricta del contrato intermedio: parametros_ts.json
     if not verificar_archivo("parametros_ts.json"):
         print("\n[X] Pipeline abortado: El archivo 'parametros_ts.json' no existe o está corrupto.")
         return
 
-    # Etapa 3: Cálculo de cortes y laberinto en L con measures2panels.py
+    # Etapa 3: Cálculo de cortes y laberinto en L
     script_3 = "measures2panels.py"
     if not ejecutar_script(script_3):
         print("\n[X] Pipeline abortado en la Etapa 3 (Cálculo de Paneles MDF).")

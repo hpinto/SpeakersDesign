@@ -8,18 +8,21 @@ def calcular_ts(archivo_csv):
         print(f"Error: El archivo {archivo_csv} no existe.")
         return
 
-    # Extraer metadatos completos del CSV automáticamente
+    # Extraer metadatos completos y nombre del parlante
     re_val, rs_val, masa_val = 0.0, 0.0, 0.0
     diametro_cm, temp_c, altitud_m, v_total = 0.0, 20.0, 0.0, 1.0
+    nombre_parlante = "Generico"
     
     with open(archivo_csv, 'r', encoding='utf-8') as f:
         for linea in f:
-            if linea.startswith("# Re:"):
+            if linea.startswith("# Parlante:"):
+                nombre_parlante = linea.split(":")[1].strip()
+            elif linea.startswith("# Re:"):
                 re_val = float(linea.split(":")[1].replace("Ohms", "").strip())
             elif linea.startswith("# Rs:"):
                 rs_val = float(linea.split(":")[1].replace("Ohms", "").strip())
             elif linea.startswith("# Masa Agregada:"):
-                masa_val = float(linea.split(":")[1].replace("g", "").strip()) / 1000.0  # Pasar a kg
+                masa_val = float(linea.split(":")[1].replace("g", "").strip()) / 1000.0  
             elif linea.startswith("# Diametro:"):
                 diametro_cm = float(linea.split(":")[1].replace("cm", "").strip())
             elif linea.startswith("# Temp:"):
@@ -29,7 +32,6 @@ def calcular_ts(archivo_csv):
             elif linea.startswith("# V_total:"):
                 v_total = float(linea.split(":")[1].replace("V", "").strip())
 
-    # Cargar datos de la matriz. Numpy ignorará automáticamente todas las líneas con '#'
     datos = np.loadtxt(archivo_csv, delimiter=',', comments='#')
     freqs = datos[:, 0]
     v_aire = datos[:, 1]
@@ -46,12 +48,11 @@ def calcular_ts(archivo_csv):
     z_aire = rs_val * (v_aire / (v_total - v_aire))
     z_masa = rs_val * (v_masa / (v_total - v_masa))
 
-    # Identificar Fs
+    # Identificar picos
     idx_fs = np.argmax(z_aire)
     fs = freqs[idx_fs]
     z_max = z_aire[idx_fs]
 
-    # Identificar Fsm
     idx_fsm = np.argmax(z_masa)
     fsm = freqs[idx_fsm]
 
@@ -75,7 +76,6 @@ def calcular_ts(archivo_csv):
     cms = 1 / ((2 * np.pi * fs)**2 * mms)
     vas = rho * (c**2) * (sd_m2**2) * cms
     vas_litros = vas * 1000
-
     bl = np.sqrt((2 * np.pi * fs * mms * re_val) / qes)
 
     print("\n" + "="*40)
@@ -99,8 +99,12 @@ def calcular_ts(archivo_csv):
     print(f"B·l (Fuerza Motor): {bl:.2f} T·m")
     print("="*40)
 
-    # Exportación JSON para integration con measures2panels.py
+    # Aislar prefijo del nombre original para el puente JSON
+    base_name = os.path.basename(archivo_csv).replace("_thiele_small.csv", "")
+
     ts_export = {
+        "Parlante": nombre_parlante,
+        "PrefijoArchivo": base_name,
         "Fs": round(float(fs), 2),
         "Qts": round(float(qts), 3),
         "Vas": round(float(vas_litros), 2),

@@ -35,7 +35,7 @@ def verificar_archivo(ruta_archivo):
 
 def main():
     print("=== Pipeline Maestro de Ingeniería Acústica EnduraLab ===")
-    print("Secuencia: Adquisición -> Procesamiento TS -> Cálculo de Paneles (Slotted Port)\n")
+    print("Secuencia: Adquisición -> Procesamiento TS -> Cálculo de Paneles\n")
     
     # Etapa 1: Adquisición de datos
     script_1 = "get_measures4ts.py"
@@ -43,8 +43,8 @@ def main():
         print("\n[X] Pipeline abortado en la Etapa 1 (Adquisición de Medidas).")
         return
         
-    # Buscar el CSV recién generado
-    archivos_csv = glob.glob("thiele_small_*.csv")
+    # Buscar el CSV recién generado con la nueva nomenclatura
+    archivos_csv = glob.glob("*_thiele_small.csv")
     if not archivos_csv:
         print("\n[X] Pipeline abortado: No se detectó la matriz CSV exportada en el directorio.")
         return
@@ -62,7 +62,7 @@ def main():
         print("\n[X] Pipeline abortado: El archivo 'parametros_ts.json' no existe o está corrupto.")
         return
 
-    # Etapa 3: Cálculo de cortes y laberinto en L
+    # Etapa 3: Cálculo de cortes, laberinto y exportación a CSV
     script_3 = "measures2panels.py"
     if not ejecutar_script(script_3):
         print("\n[X] Pipeline abortado en la Etapa 3 (Cálculo de Paneles MDF).")
@@ -70,7 +70,6 @@ def main():
         
     print("\n" + "="*50)
     print("[+] ¡Pipeline ejecutado de extremo a extremo con éxito!")
-    print("[+] Lista de cortes y especificaciones de laberinto generadas listas para taller.")
     print("="*50)
 
 if __name__ == "__main__":

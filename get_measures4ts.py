@@ -137,10 +137,11 @@ async def main():
         altitud_m = input("Altitud sobre el nivel del mar [m] (ej. 600): ").strip() or "0.0"
         v_total = input("Voltaje total del amplificador [V] (ej. 1.0): ").strip() or "1.0"
 
-        # --- RESOLUCIÓN DE RUTAS ---
+        # --- RESOLUCIÓN DE RUTAS Y NOMENCLATURA ---
         script_dir = os.path.dirname(os.path.abspath(__file__))
         ts_str = datetime.now().strftime("%Y%m%d%H%M")
-        filename_personal = f"thiele_small_{nombre_parlante.replace(' ', '_')}_{ts_str}.csv"
+        nombre_limpio = nombre_parlante.replace(' ', '_')
+        filename_personal = f"{ts_str}_{nombre_limpio}_thiele_small.csv"
         filepath_personal = os.path.join(script_dir, filename_personal)
         
         # --- GENERACIÓN DE CABECERAS Y GUARDADO ---

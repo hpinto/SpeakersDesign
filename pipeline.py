@@ -4,14 +4,10 @@ import sys
 import glob
 
 def ejecutar_script(nombre_script, args=None):
-    print(f"\n" + "="*50)
-    print(f"[+] Iniciando etapa: {nombre_script}")
-    print("="*50)
-    
+    print(f"\n{'='*50}\n[+] Iniciando etapa: {nombre_script}\n{'='*50}")
     if not os.path.exists(nombre_script):
-        print(f"[!] Error crítico: No se encuentra el archivo '{nombre_script}' en el directorio actual.")
+        print(f"[!] Error crítico: No se encuentra '{nombre_script}'.")
         return False
-        
     try:
         cmd = [sys.executable, nombre_script]
         if args:
@@ -19,58 +15,31 @@ def ejecutar_script(nombre_script, args=None):
         resultado = subprocess.run(cmd, check=True)
         return resultado.returncode == 0
     except subprocess.CalledProcessError as e:
-        print(f"[!] Error en la ejecución de {nombre_script} (Código de salida: {e.returncode})")
-        return False
-    except Exception as e:
-        print(f"[!] Excepción no controlada al ejecutar {nombre_script}: {e}")
-        return False
-
-def verificar_archivo(ruta_archivo):
-    if os.path.exists(ruta_archivo):
-        print(f"[i] Verificación exitosa: Archivo intermedio '{ruta_archivo}' generado correctamente.")
-        return True
-    else:
-        print(f"[!] Alerta de integridad: No se detectó el archivo esperado '{ruta_archivo}'.")
+        print(f"[!] Error en {nombre_script} (Código: {e.returncode})")
         return False
 
 def main():
     print("=== Pipeline Maestro de Ingeniería Acústica EnduraLab ===")
-    print("Secuencia: Adquisición -> Procesamiento TS -> Cálculo de Paneles\n")
+    os.makedirs("data", exist_ok=True)
     
-    # Etapa 1: Adquisición de datos
-    script_1 = "get_measures4ts.py"
-    if not ejecutar_script(script_1):
-        print("\n[X] Pipeline abortado en la Etapa 1 (Adquisición de Medidas).")
-        return
-        
-    # Buscar el CSV recién generado con la nueva nomenclatura
-    archivos_csv = glob.glob("*_thiele_small.csv")
-    if not archivos_csv:
-        print("\n[X] Pipeline abortado: No se detectó la matriz CSV exportada en el directorio.")
-        return
-        
-    latest_csv = max(archivos_csv, key=os.path.getmtime)
-    print(f"[i] Matriz detectada: {latest_csv}")
+    # Etapa 1: Adquisición BLE
+    if not ejecutar_script(os.path.join("scripts", "get_measures.py")): return
     
-    # Etapa 2: Procesamiento matemático de Thiele-Small
-    script_2 = "process_measures4ts.py"
-    if not ejecutar_script(script_2, args=[latest_csv]):
-        print("\n[X] Pipeline abortado en la Etapa 2 (Procesamiento de Parámetros TS).")
-        return
-        
-    if not verificar_archivo("parametros_ts.json"):
-        print("\n[X] Pipeline abortado: El archivo 'parametros_ts.json' no existe o está corrupto.")
-        return
-
-    # Etapa 3: Cálculo de cortes, laberinto y exportación a CSV
-    script_3 = "measures2panels.py"
-    if not ejecutar_script(script_3):
-        print("\n[X] Pipeline abortado en la Etapa 3 (Cálculo de Paneles MDF).")
-        return
-        
-    print("\n" + "="*50)
-    print("[+] ¡Pipeline ejecutado de extremo a extremo con éxito!")
-    print("="*50)
+    archivos_data = glob.glob(os.path.join("data", "*_thiele_small_data.json"))
+    if not archivos_data: return
+    latest_data = max(archivos_data, key=os.path.getmtime)
+    
+    # Etapa 2: Procesamiento TS
+    if not ejecutar_script(os.path.join("scripts", "process_measures.py"), args=[latest_data]): return
+    
+    archivos_proc = glob.glob(os.path.join("data", "*_thiele_small_processed.json"))
+    if not archivos_proc: return
+    latest_proc = max(archivos_proc, key=os.path.getmtime)
+    
+    # Etapa 3: Cálculo y PDF
+    if not ejecutar_script(os.path.join("scripts", "measures2panels.py"), args=[latest_proc]): return
+    
+    print("\n" + "="*50 + "\n[+] ¡Pipeline ejecutado de extremo a extremo con éxito!\n" + "="*50)
 
 if __name__ == "__main__":
     main()

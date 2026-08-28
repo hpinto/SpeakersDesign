@@ -1,130 +1,113 @@
 import math
 import json
 import os
-import csv
+import sys
+from fpdf import FPDF
 
-def calcular_cortes_caja():
-    print("=== Calculadora Automática Acústica MDF (Slot Port L + Exportación CSV) ===\n")
+def encontrar_vb_convergente(fs, sd, espesor_cm):
+    area_puerto = sd * 0.30
+    phi = (1.0 + math.sqrt(5.0)) / 2.0
+    root_phi = math.sqrt(phi)
     
-    archivo_json = "parametros_ts.json"
+    vb_min, vb_max, vb_target = 1.0, 150.0, 5.0
     
-    if not os.path.exists(archivo_json):
-        print(f"[!] Error crítico: No se encontró el archivo '{archivo_json}'.")
-        return
+    for _ in range(100):
+        vb = (vb_min + vb_max) / 2.0
+        w_int = ((vb * 1000.0) / (phi ** 1.5)) ** (1.0 / 3.0)
+        d_int = w_int * root_phi
+        h_int = w_int * phi
+        
+        l_req = (30000.0 * area_puerto) / (vb * (fs ** 2)) - (0.823 * math.sqrt(area_puerto))
+        l_disp = d_int + h_int - (2 * espesor_cm)
+        
+        if abs(l_req - l_disp) < 0.01:
+            vb_target = vb
+            break
+        elif l_req > l_disp:
+            vb_min = vb
+        else:
+            vb_max = vb
+            vb_target = vb
+    return vb_target
 
-    try:
-        with open(archivo_json, 'r') as f:
-            ts_data = json.load(f)
-            vas = float(ts_data['Vas'])
-            qts = float(ts_data['Qts'])
-            fs = float(ts_data['Fs'])
-            sd = float(ts_data['Sd'])
-            prefijo = ts_data.get('PrefijoArchivo', 'Gabinete')
-            print(f"[+] Parámetros importados: Vas={vas}L, Qts={qts}, Fs={fs}Hz, Sd={sd}cm2\n")
-    except Exception as e:
-        print(f"[!] Error al leer JSON: {e}")
-        return
+def calcular_cortes_caja(archivo_json):
+    if not os.path.exists(archivo_json): return
+
+    with open(archivo_json, 'r') as f:
+        ts_data = json.load(f)
+        fs = float(ts_data['Fs'])
+        sd = float(ts_data['Sd'])
+        nombre_parlante = ts_data['Parlante']
 
     try:
         espesor_mdf_mm = float(input("Espesor del MDF (mm): "))
-        vol_crossover = float(input("Volumen del crossover (Litros): "))
-        vol_driver = float(input("Volumen desplazado por el imán/cono (Litros): "))
-        ganancia_napa = float(input("% de ganancia de volumen aparente por napa (ej. 15): "))
     except ValueError:
-        print("Error: Ingresa únicamente valores numéricos.")
         return
 
     espesor_cm = round(espesor_mdf_mm / 10.0, 1)
+    vb_neto = encontrar_vb_convergente(fs, sd, espesor_cm)
     
-    vb_neto_litros = 15.0 * (qts ** 2.87) * vas
-    fb_target = fs
-    print(f"\n[+] Volumen Acústico Neto Objetivo: {vb_neto_litros:.2f} Litros")
-    print(f"[+] Frecuencia de Sintonía (Fb) anclada a Fs: {fb_target:.2f} Hz")
-
-    area_puerto_cm2 = sd * 0.30
-    
-    phi = 1.61803398875
-    root_phi = math.sqrt(phi)
-    factor_napa = 1.0 + (ganancia_napa / 100.0)
-    
-    vol_bruto_base = vb_neto_litros + vol_crossover + vol_driver
-    vol_puerto_total_litros = 0.0
-    
-    w_int = 0.0
-    h_puerto_cm = 0.0
-    l_puerto_cm = 0.0
-    
-    for _ in range(15):
-        vb_fisico_litros = (vol_bruto_base + vol_puerto_total_litros) / factor_napa
-        vol_cm3 = vb_fisico_litros * 1000.0
-        
-        w_int = (vol_cm3 / (phi ** 1.5)) ** (1.0 / 3.0)
-        h_puerto_cm = area_puerto_cm2 / w_int
-        
-        l_puerto_cm = (30000.0 * area_puerto_cm2) / (vb_neto_litros * (fb_target ** 2)) - (0.823 * math.sqrt(area_puerto_cm2))
-        if l_puerto_cm < 0: l_puerto_cm = 0.1
-        
-        vol_aire_puerto_cm3 = w_int * h_puerto_cm * l_puerto_cm
-        vol_madera_puerto_cm3 = w_int * espesor_cm * l_puerto_cm
-        vol_puerto_total_litros = (vol_aire_puerto_cm3 + vol_madera_puerto_cm3) / 1000.0
-
-    w_int = round(w_int, 1)
-    d_int = round(w_int * root_phi, 1)
+    phi = (1.0 + math.sqrt(5.0)) / 2.0
+    w_int = round(((vb_neto * 1000.0) / (phi ** 1.5)) ** (1.0 / 3.0), 1)
+    d_int = round(w_int * math.sqrt(phi), 1)
     h_int = round(w_int * phi, 1)
-    h_puerto_cm = round(h_puerto_cm, 1)
-    l_puerto_cm = round(l_puerto_cm, 1)
+    
+    h_puerto_cm = round((sd * 0.30) / w_int, 1)
+    l_puerto_cm = round((30000.0 * (sd * 0.30)) / (vb_neto * (fs ** 2)) - (0.823 * math.sqrt((sd * 0.30))), 1)
     
     h_ext = round(h_int + (2 * espesor_cm), 1)
     d_ext = round(d_int + (2 * espesor_cm), 1)
-    
-    # --- Matriz de Cortes para Exportación ---
+
     cortes = [
-        ["2x Laterales", h_ext, d_ext],
-        ["2x Superior/Inferior", w_int, d_ext],
-        ["2x Frontal/Trasero", h_int, w_int]
+        ["2x Laterales Caja", h_ext, d_ext],
+        ["2x Superior/Inferior Caja", w_int, d_ext],
+        ["1x Panel Trasero Caja", h_int, w_int],
+        ["1x Panel Frontal Caja", round(h_int - h_puerto_cm, 1), w_int],
+        ["1x Falso Piso Puerto (Base)", w_int, d_int],
+        ["1x Falso Respaldo Puerto (Sube)", w_int, round(l_puerto_cm - d_int, 1)],
+        ["1x Deflector Codo 45 grados", w_int, round((h_puerto_cm * (1.0 - (math.sqrt(2.0) / 2.0))) * math.sqrt(2.0), 2)]
     ]
+
+    # Generación del Documento PDF
+    pdf = FPDF()
+    pdf.add_page()
     
-    largo_maximo_base = d_int - h_puerto_cm
-    estado_puerto = ""
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(0, 10, f"Planos de Construcción Acústica - {nombre_parlante}", ln=True, align='C')
+    pdf.ln(5)
     
-    if l_puerto_cm <= largo_maximo_base:
-        l_panel_base = round(l_puerto_cm - espesor_cm, 1)
-        cortes.append(["1x Techo de Ranura Recta", w_int, l_panel_base])
-        estado_puerto = "El puerto no requiere doblarse en L (cabe en el piso)."
-    else:
-        l_panel_base = round(largo_maximo_base - espesor_cm, 1)
-        l_panel_vertical = round(l_puerto_cm - largo_maximo_base, 1)
-        
-        cateto = h_puerto_cm * (1.0 - (math.sqrt(2.0) / 2.0))
-        deflector_face = round(cateto * math.sqrt(2.0), 2)
-        
-        cortes.append(["1x Techo de Ranura (Piso)", w_int, l_panel_base])
-        cortes.append(["1x Pared de Ranura (Sube)", w_int, l_panel_vertical])
-        cortes.append(["2x Deflectores a 45 grados", w_int, deflector_face])
-        estado_puerto = "Deflectores: Listones con ambos cantos cortados a 45 grados para pegar en los dos vértices del codo."
-
-    # --- Generación de Archivo CSV ---
-    archivo_csv_paneles = f"{prefijo}_panels.csv"
-    try:
-        with open(archivo_csv_paneles, 'w', encoding='utf-8', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(["Panel", "Ancho_cm", "Largo_o_Cara_cm"])
-            for corte in cortes:
-                writer.writerow(corte)
-        print(f"\n[+] Matriz de paneles exportada exitosamente a '{archivo_csv_paneles}'")
-    except Exception as e:
-        print(f"\n[!] Error al exportar CSV de paneles: {e}")
-
-    # --- Impresión en Consola ---
-    print("\n--- Dimensiones Internas Físicas ---")
-    print(f"Ancho (W):       {w_int:.1f} cm")
-    print(f"Profundidad (D): {d_int:.1f} cm")
-    print(f"Alto (H):        {h_int:.1f} cm")
-
-    print("\n--- Lista de Cortes MDF ---")
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 8, "Parámetros Thiele-Small y Entorno:", ln=True)
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(0, 6, f"Frecuencia de Resonancia (Fs): {fs} Hz", ln=True)
+    pdf.cell(0, 6, f"Volumen Equivalente (Vas): {ts_data['Vas']} Litros", ln=True)
+    pdf.cell(0, 6, f"Área Útil del Cono (Sd): {sd} cm2", ln=True)
+    pdf.cell(0, 6, f"Factor de Calidad (Qts): {ts_data['Qts']}", ln=True)
+    pdf.ln(5)
+    
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 8, "Geometría de Convergencia (EBS Áureo):", ln=True)
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(0, 6, f"Volumen Neto Estanco: {vb_neto:.2f} Litros", ln=True)
+    pdf.cell(0, 6, f"Espacio Interno (Ancho x Prof. x Alto): {w_int} x {d_int} x {h_int} cm", ln=True)
+    pdf.cell(0, 6, f"Conducto Reflex Externo: Ranura {h_puerto_cm} cm | Longitud {l_puerto_cm} cm", ln=True)
+    pdf.ln(10)
+    
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 8, "Despiece de Paneles MDF:", ln=True)
+    pdf.set_font("Courier", '', 10)
+    
     for corte in cortes:
-        print(f"{corte[0]:<30} | {corte[1]:.1f} cm x {corte[2]:.2f} cm")
-    print(f"\n[i] {estado_puerto}")
+        pdf.cell(0, 6, f"{corte[0]:<35} | {corte[1]:>5.1f} cm x {corte[2]:>5.2f} cm", ln=True)
+
+    base_name = os.path.basename(archivo_json).replace("_thiele_small_processed.json", "")
+    pdf_filename = os.path.join("data", f"{base_name}_panels.pdf")
+    
+    pdf.output(pdf_filename)
+    print(f"\n[+] PDF de corte generado y guardado en '{pdf_filename}'")
 
 if __name__ == "__main__":
-    calcular_cortes_caja()
+    if len(sys.argv) > 1:
+        calcular_cortes_caja(sys.argv[1])
+    else:
+        print("[!] Ruta del JSON procesado no proporcionada.")

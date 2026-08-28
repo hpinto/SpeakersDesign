@@ -137,12 +137,34 @@ async def main():
         altitud_m = input("Altitud sobre el nivel del mar [m] (ej. 600): ").strip() or "0.0"
         v_total = input("Voltaje total del amplificador [V] (ej. 1.0): ").strip() or "1.0"
 
-        # --- RESOLUCIÓN DE RUTAS Y NOMENCLATURA ---
-        script_dir = os.path.dirname(os.path.abspath(__file__))
+# --- RESOLUCIÓN DE RUTAS Y NOMENCLATURA ---
+        import json
         ts_str = datetime.now().strftime("%Y%m%d%H%M")
         nombre_limpio = nombre_parlante.replace(' ', '_')
-        filename_personal = f"{ts_str}_{nombre_limpio}_thiele_small.csv"
-        filepath_personal = os.path.join(script_dir, filename_personal)
+        filename_personal = f"{ts_str}_{nombre_limpio}_thiele_small_data.json"
+        
+        # Sube un nivel desde 'scripts' para guardar en 'data'
+        filepath_personal = os.path.join("data", filename_personal)
+        
+        datos_json = {
+            "Parlante": nombre_parlante,
+            "Re": float(re_val),
+            "Rs": float(rs_val),
+            "Masa_Agregada": float(masa_val),
+            "Diametro": float(diametro_cm),
+            "Temp": float(temp_c),
+            "Altitud": float(altitud_m),
+            "V_total": float(v_total),
+            "Barrido": [
+                {"Frecuencia": f, "V_Aire": va, "V_Masa": vm} 
+                for f, va, vm in zip(frecuencias, v_aire, v_masa)
+            ]
+        }
+
+        with open(filepath_personal, "w", encoding="utf-8") as f:
+            json.dump(datos_json, f, indent=4)
+            
+        print(f"\n[+] Matriz de datos exportada a '{filepath_personal}'")
         
         # --- GENERACIÓN DE CABECERAS Y GUARDADO ---
         cabeceras = (

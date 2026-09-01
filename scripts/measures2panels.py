@@ -94,7 +94,7 @@ def calcular_cortes_caja(archivo_json):
     pdf.ln(10)
     
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 8, "Despiece de Paneles MDF:", ln=True)
+    pdf.cell(0, 8, f"Despiece de Paneles MDF {espesor_mdf_mm:.0f} mm:", ln=True)
     pdf.set_font("Courier", '', 10)
     
     for corte in cortes:

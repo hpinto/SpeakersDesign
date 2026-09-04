@@ -5,7 +5,7 @@ from bleak import BleakScanner, BleakClient
 
 START_FREQ = 20.0
 END_FREQ = 200.0
-POINTS_PER_OCTAVE = 48
+POINTS_PER_OCTAVE = 12
 
 TONE_DURATION = 3.0  
 SETTLE_TIME = 2.5    
@@ -30,8 +30,7 @@ async def notification_handler(sender, data: bytearray):
             }
             
             divisor = divisores.get(byte_estado, 1000.0)
-            # Multiplicador x2 inyectado para compensar la lectura asimétrica del ADC sobre el amplificador BTL
-            ultimo_voltaje = (raw_val16 / divisor) * 2.0
+            ultimo_voltaje = raw_val16 / divisor
     except Exception as e:
         print(f"\n[Error de lectura BLE] No se pudo parsear el paquete: {e}")
 
@@ -138,12 +137,13 @@ async def main():
         altitud_m = input("Altitud sobre el nivel del mar [m] (ej. 600): ").strip() or "0.0"
         v_total = input("Voltaje total del amplificador [V] (ej. 1.0): ").strip() or "1.0"
 
-        # --- RESOLUCIÓN DE RUTAS Y NOMENCLATURA ---
+# --- RESOLUCIÓN DE RUTAS Y NOMENCLATURA ---
         import json
         ts_str = datetime.now().strftime("%Y%m%d%H%M")
         nombre_limpio = nombre_parlante.replace(' ', '_')
         filename_personal = f"{ts_str}_{nombre_limpio}_thiele_small_data.json"
         
+        # Sube un nivel desde 'scripts' para guardar en 'data'
         filepath_personal = os.path.join("data", filename_personal)
         
         datos_json = {
@@ -164,7 +164,31 @@ async def main():
         with open(filepath_personal, "w", encoding="utf-8") as f:
             json.dump(datos_json, f, indent=4)
             
-        print(f"\n[+] Matriz de datos exportada en formato JSON válido a '{filepath_personal}'")
+        print(f"\n[+] Matriz de datos exportada a '{filepath_personal}'")
+        
+        # --- GENERACIÓN DE CABECERAS Y GUARDADO ---
+        cabeceras = (
+            f"# Parlante: {nombre_parlante}\n"
+            f"# Re: {re_val} Ohms\n"
+            f"# Rs: {rs_val} Ohms\n"
+            f"# Masa Agregada: {masa_val} g\n"
+            f"# Diametro: {diametro_cm} cm\n"
+            f"# Temp: {temp_c} C\n"
+            f"# Altitud: {altitud_m} m\n"
+            f"# V_total: {v_total} V\n"
+            "# Frecuencia,V_AireLibre,V_MasaAgregada\n" 
+        )
+        
+        lineas_datos = [
+            f"{f_hz:.4f},{v_a:.4f},{v_m:.4f}\n" 
+            for f_hz, v_a, v_m in zip(frecuencias, v_aire, v_masa)
+        ]
+
+        with open(filepath_personal, "w", encoding="utf-8") as f:
+            f.write(cabeceras)
+            f.writelines(lineas_datos)
+            
+        print(f"\n[+] Matriz exportada a '{filepath_personal}' lista para el Pipeline.")
 
 if __name__ == "__main__":
     asyncio.run(main())

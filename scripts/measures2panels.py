@@ -1,5 +1,5 @@
 import math
-import json
+import re
 import os
 import sys
 from fpdf import FPDF
@@ -33,23 +33,23 @@ def renderizar_planos_2d(base_name, d_int, w_int, h_int, espesor, h_puerto, l_pu
     ax.set_title("Corte Lateral (Mecánica de Fluidos)", fontsize=12, fontweight='bold', pad=15)
     
     # Chasis Exterior
-    agregar_panel(ax, 0, 0, d_ext, espesor) # Inferior
-    agregar_panel(ax, 0, h_ext - espesor, d_ext, espesor) # Superior
-    agregar_panel(ax, 0, espesor + h_puerto, espesor, h_int - h_puerto) # Frontal (suspendido)
-    agregar_panel(ax, d_ext - espesor, espesor, espesor, h_int) # Trasero
+    agregar_panel(ax, 0, 0, d_ext, espesor) 
+    agregar_panel(ax, 0, h_ext - espesor, d_ext, espesor) 
+    agregar_panel(ax, 0, espesor + h_puerto, espesor, h_int - h_puerto) 
+    agregar_panel(ax, d_ext - espesor, espesor, espesor, h_int) 
     
     # Laberinto Dinámico
     if "Recta" in tipo_puerto:
         agregar_panel(ax, espesor, espesor + h_puerto, l_puerto_cm, espesor)
     else:
-        agregar_panel(ax, espesor, espesor + h_puerto, l_falso_piso, espesor) # Base
+        agregar_panel(ax, espesor, espesor + h_puerto, l_falso_piso, espesor) 
         x_respaldo = espesor + l_falso_piso
         y_respaldo = espesor + h_puerto
-        agregar_panel(ax, x_respaldo, y_respaldo, espesor, l_falso_respaldo) # Sube
+        agregar_panel(ax, x_respaldo, y_respaldo, espesor, l_falso_respaldo) 
         if "2 Codos" in tipo_puerto:
             x_techo = x_respaldo - l_falso_techo
             y_techo = y_respaldo + l_falso_respaldo
-            agregar_panel(ax, x_techo, y_techo, l_falso_techo, espesor) # Vuelve
+            agregar_panel(ax, x_techo, y_techo, l_falso_techo, espesor) 
             
     plt.tight_layout()
     ruta_lat = os.path.join("data", f"{base_name}_lateral.png")
@@ -65,15 +65,15 @@ def renderizar_planos_2d(base_name, d_int, w_int, h_int, espesor, h_puerto, l_pu
     ax2.set_title("Vista Frontal (Baffle)", fontsize=12, fontweight='bold', pad=15)
     
     # Chasis
-    agregar_panel(ax2, 0, 0, w_ext, espesor) # Inferior
-    agregar_panel(ax2, 0, h_ext - espesor, w_ext, espesor) # Superior
-    agregar_panel(ax2, 0, espesor, espesor, h_int) # Lateral Izq
-    agregar_panel(ax2, w_ext - espesor, espesor, espesor, h_int) # Lateral Der
+    agregar_panel(ax2, 0, 0, w_ext, espesor) 
+    agregar_panel(ax2, 0, h_ext - espesor, w_ext, espesor) 
+    agregar_panel(ax2, 0, espesor, espesor, h_int) 
+    agregar_panel(ax2, w_ext - espesor, espesor, espesor, h_int) 
     
     # Baffle Frontal
     agregar_panel(ax2, espesor, espesor + h_puerto, w_int, h_int - h_puerto)
     
-    # Renderizado del Transductor (Círculo a escala geométrica)
+    # Renderizado del Transductor
     centro_x = w_ext / 2
     centro_y = (espesor + h_puerto + h_ext - espesor) / 2
     radio = w_int * 0.38
@@ -82,7 +82,6 @@ def renderizar_planos_2d(base_name, d_int, w_int, h_int, espesor, h_puerto, l_pu
     ax2.add_patch(parlante)
     ax2.add_patch(cono)
     
-    # Etiqueta de la ranura de admisión
     ax2.text(centro_x, espesor + (h_puerto / 2), f"Túnel Reflex: {h_puerto} cm", color='black', ha='center', va='center', fontsize=9, zorder=6)
 
     plt.tight_layout()
@@ -92,18 +91,32 @@ def renderizar_planos_2d(base_name, d_int, w_int, h_int, espesor, h_puerto, l_pu
     
     return ruta_lat, ruta_front
 
-def calcular_cortes_caja(archivo_json):
-    if not os.path.exists(archivo_json): 
-        print(f"[!] Archivo no encontrado: {archivo_json}")
+def calcular_cortes_caja(archivo_txt):
+    if not os.path.exists(archivo_txt): 
+        print(f"[!] Archivo no encontrado: {archivo_txt}")
         return
 
-    with open(archivo_json, 'r') as f:
-        ts_data = json.load(f)
-        fs = float(ts_data['Fs'])
-        sd = float(ts_data['Sd'])
-        vas = float(ts_data['Vas'])
-        qts = float(ts_data['Qts'])
-        nombre_parlante = ts_data['Parlante']
+    fs = sd = vas = qts = 0.0
+    
+    # Extracción de datos desde el formato de texto de REW
+    with open(archivo_txt, 'r', encoding='utf-8') as f:
+        contenido = f.read()
+        
+        match_fs = re.search(r'Fs\s*=\s*([\d\.]+)', contenido, re.IGNORECASE)
+        match_sd = re.search(r'Sd\s*=\s*([\d\.]+)', contenido, re.IGNORECASE)
+        match_vas = re.search(r'Vas\s*=\s*([\d\.]+)', contenido, re.IGNORECASE)
+        match_qts = re.search(r'Qts?\s*=\s*([\d\.]+)', contenido, re.IGNORECASE)
+        
+        if match_fs: fs = float(match_fs.group(1))
+        if match_sd: sd = float(match_sd.group(1))
+        if match_vas: vas = float(match_vas.group(1))
+        if match_qts: qts = float(match_qts.group(1))
+        
+    if not all([fs, sd, vas, qts]):
+        print("[!] Error: No se encontraron todos los parámetros requeridos (Fs, Sd, Vas, Qts) en el archivo TXT.")
+        return
+        
+    nombre_parlante = os.path.basename(archivo_txt).replace(".txt", "").replace("_", " ")
 
     try:
         espesor_mdf_mm = float(input("Espesor del MDF (mm): "))
@@ -112,11 +125,9 @@ def calcular_cortes_caja(archivo_json):
 
     espesor_cm = round(espesor_mdf_mm / 10.0, 1)
     
-    # Constantes Áureas
     phi = (1.0 + math.sqrt(5.0)) / 2.0
     root_phi = math.sqrt(phi)
     
-    # Alineación EBS y Termodinámica
     vb_neto = (2.0 - (1.0 / phi)) * 15.0 * vas * (math.pow(qts, 2.87))
     fb = fs
     area_puerto = sd * (root_phi - 1.0)
@@ -172,9 +183,8 @@ def calcular_cortes_caja(archivo_json):
             if l_falso_techo > espacio_disponible_techo:
                 alerta_colision = True
 
-    base_name = os.path.basename(archivo_json).replace("_thiele_small_processed.json", "").replace(".json", "")
+    base_name = os.path.basename(archivo_txt).replace(".txt", "")
     
-    # Generación de Documento PDF Principal
     pdf = FPDF()
     pdf.add_page()
     
@@ -214,7 +224,6 @@ def calcular_cortes_caja(archivo_json):
     for corte in cortes:
         pdf.cell(0, 6, f"{corte[0]:<35} | {corte[1]:>5.1f} cm x {corte[2]:>5.2f} cm", ln=True)
 
-    # Inyección de Gráficos 2D
     if GRAFICOS_DISPONIBLES:
         ruta_lat, ruta_front = renderizar_planos_2d(
             base_name, d_int, w_int, h_int, espesor_cm, h_puerto_cm, l_puerto_cm, 
@@ -223,7 +232,6 @@ def calcular_cortes_caja(archivo_json):
         pdf.add_page()
         pdf.set_font("Arial", 'B', 14)
         pdf.cell(0, 10, "Esquemática de Ensamblaje y Traslapes", ln=True, align='C')
-        # Renderizado simétrico de ambas vistas
         pdf.image(ruta_lat, x=10, y=30, w=90)
         pdf.image(ruta_front, x=110, y=30, w=90)
 
@@ -235,4 +243,4 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         calcular_cortes_caja(sys.argv[1])
     else:
-        print("[!] Ruta del JSON procesado no proporcionada.")
+        print("[!] Ruta del archivo TXT exportado por REW no proporcionada.")

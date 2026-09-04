@@ -235,7 +235,7 @@ def calcular_cortes_caja(archivo_txt):
         pdf.image(ruta_lat, x=10, y=30, w=90)
         pdf.image(ruta_front, x=110, y=30, w=90)
 
-    pdf_filename = os.path.join("data", f"{base_name}_panels_interno_graficos.pdf")
+    pdf_filename = os.path.join("data", f"{base_name}_panels.pdf")
     pdf.output(pdf_filename)
     print(f"\n[+] PDF generado: '{pdf_filename}'")
 

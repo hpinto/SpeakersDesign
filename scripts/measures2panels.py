@@ -64,11 +64,11 @@ def renderizar_planos_2d(base_name, d_int, w_int, h_int, espesor, h_puerto, l_pu
     ax2.axis('off')
     ax2.set_title("Vista Frontal (Baffle)", fontsize=12, fontweight='bold', pad=15)
     
-    # Chasis
-    agregar_panel(ax2, 0, 0, w_ext, espesor) 
-    agregar_panel(ax2, 0, h_ext - espesor, w_ext, espesor) 
-    agregar_panel(ax2, 0, espesor, espesor, h_int) 
-    agregar_panel(ax2, w_ext - espesor, espesor, espesor, h_int) 
+    # Chasis (Laterales al alto total, cielo/piso confinados al ancho interno)
+    agregar_panel(ax2, 0, 0, espesor, h_ext) # Lateral izquierdo
+    agregar_panel(ax2, w_ext - espesor, 0, espesor, h_ext) # Lateral derecho
+    agregar_panel(ax2, espesor, 0, w_int, espesor) # Piso interno
+    agregar_panel(ax2, espesor, h_ext - espesor, w_int, espesor) # Cielo interno
     
     # Baffle Frontal
     agregar_panel(ax2, espesor, espesor + h_puerto, w_int, h_int - h_puerto)

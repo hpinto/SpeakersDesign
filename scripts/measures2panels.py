@@ -12,7 +12,7 @@ except ImportError:
     GRAFICOS_DISPONIBLES = False
     print("[!] Librería 'matplotlib' no encontrada. Instálala con 'pip install matplotlib' para generar los planos 2D.")
 
-def renderizar_planos_2d(base_name, d_int, w_int, h_int, espesor, h_puerto, l_puerto_cm, l_falso_piso, l_falso_respaldo, l_falso_techo, tipo_puerto):
+def renderizar_planos_2d(base_name, d_int, w_int, h_int, espesor, h_puerto, l_mdf_recto, l_falso_piso, l_falso_respaldo, l_falso_techo, tipo_puerto, offset_cm):
     d_ext = d_int + (2 * espesor)
     h_ext = h_int + (2 * espesor)
     w_ext = w_int + (2 * espesor)
@@ -40,7 +40,7 @@ def renderizar_planos_2d(base_name, d_int, w_int, h_int, espesor, h_puerto, l_pu
     
     # Laberinto Dinámico
     if "Recta" in tipo_puerto:
-        agregar_panel(ax, espesor, espesor + h_puerto, l_puerto_cm, espesor)
+        agregar_panel(ax, espesor, espesor + h_puerto, l_mdf_recto, espesor)
     else:
         agregar_panel(ax, espesor, espesor + h_puerto, l_falso_piso, espesor) 
         x_respaldo = espesor + l_falso_piso
@@ -56,36 +56,50 @@ def renderizar_planos_2d(base_name, d_int, w_int, h_int, espesor, h_puerto, l_pu
     plt.savefig(ruta_lat, dpi=300, bbox_inches='tight')
     plt.close()
     
-    # --- 2. VISTA FRONTAL (Baffle y Ranura) ---
-    fig2, ax2 = plt.subplots(figsize=(5, 7))
-    ax2.set_xlim(-2, w_ext + 4)
-    ax2.set_ylim(-2, h_ext + 2)
-    ax2.set_aspect('equal')
-    ax2.axis('off')
-    ax2.set_title("Vista Frontal (Baffle)", fontsize=12, fontweight='bold', pad=15)
+    # --- 2. VISTA FRONTAL ESPEJADA (Baffle y Ranura L/R) ---
+    fig2, (ax_l, ax_r) = plt.subplots(1, 2, figsize=(10, 7))
     
-    # Chasis (Laterales al alto total, cielo/piso confinados al ancho interno)
-    agregar_panel(ax2, 0, 0, espesor, h_ext) # Lateral izquierdo
-    agregar_panel(ax2, w_ext - espesor, 0, espesor, h_ext) # Lateral derecho
-    agregar_panel(ax2, espesor, 0, w_int, espesor) # Piso interno
-    agregar_panel(ax2, espesor, h_ext - espesor, w_int, espesor) # Cielo interno
-    
-    # Baffle Frontal
-    agregar_panel(ax2, espesor, espesor + h_puerto, w_int, h_int - h_puerto)
-    
-    # Renderizado del Transductor
-    centro_x = w_ext / 2
-    centro_y = (espesor + h_puerto + h_ext - espesor) / 2
-    radio = w_int * 0.38
-    parlante = patches.Circle((centro_x, centro_y), radio, linewidth=1.5, edgecolor='#333333', facecolor='#4A4A4A', zorder=4)
-    cono = patches.Circle((centro_x, centro_y), radio * 0.75, linewidth=1, edgecolor='#222222', facecolor='#2F2F2F', zorder=5)
-    ax2.add_patch(parlante)
-    ax2.add_patch(cono)
-    
-    ax2.text(centro_x, espesor + (h_puerto / 2), f"Túnel Reflex: {h_puerto} cm", color='black', ha='center', va='center', fontsize=9, zorder=6)
+    def dibujar_frontal(ax_obj, x_shift, titulo):
+        ax_obj.set_xlim(-2, w_ext + 4)
+        ax_obj.set_ylim(-2, h_ext + 2)
+        ax_obj.set_aspect('equal')
+        ax_obj.axis('off')
+        ax_obj.set_title(titulo, fontsize=12, fontweight='bold', pad=15)
+        
+        # Chasis
+        agregar_panel(ax_obj, 0, 0, espesor, h_ext)
+        agregar_panel(ax_obj, w_ext - espesor, 0, espesor, h_ext)
+        agregar_panel(ax_obj, espesor, 0, w_int, espesor)
+        agregar_panel(ax_obj, espesor, h_ext - espesor, w_int, espesor)
+        
+        # Baffle Frontal
+        h_frontal = h_int - h_puerto
+        y_base_baffle = espesor + h_puerto
+        agregar_panel(ax_obj, espesor, y_base_baffle, w_int, h_frontal)
+        
+        # Coordenadas Transductores
+        centro_x = (w_ext / 2) + x_shift
+        centro_y_woofer = y_base_baffle + (h_frontal * 0.35)
+        centro_y_tweeter = y_base_baffle + (h_frontal * 0.75)
+        
+        radio_w = w_int * 0.35
+        radio_t = w_int * 0.15
+        
+        # Woofer
+        ax_obj.add_patch(patches.Circle((centro_x, centro_y_woofer), radio_w, linewidth=1.5, edgecolor='#333333', facecolor='#4A4A4A', zorder=4))
+        ax_obj.add_patch(patches.Circle((centro_x, centro_y_woofer), radio_w * 0.75, linewidth=1, edgecolor='#222222', facecolor='#2F2F2F', zorder=5))
+        
+        # Tweeter
+        ax_obj.add_patch(patches.Circle((centro_x, centro_y_tweeter), radio_t, linewidth=1.5, edgecolor='#333333', facecolor='#1A1A1A', zorder=4))
+        ax_obj.add_patch(patches.Circle((centro_x, centro_y_tweeter), radio_t * 0.6, linewidth=1, edgecolor='#222222', facecolor='#2F2F2F', zorder=5))
+        
+        ax_obj.text(w_ext / 2, espesor + (h_puerto / 2), f"Reflex: {h_puerto} cm", color='black', ha='center', va='center', fontsize=9, zorder=6)
 
+    dibujar_frontal(ax_l, -offset_cm, "Caja Izquierda (L)")
+    dibujar_frontal(ax_r, offset_cm, "Caja Derecha (R)")
+    
     plt.tight_layout()
-    ruta_front = os.path.join("data", f"{base_name}_frontal.png")
+    ruta_front = os.path.join("data", f"{base_name}_frontales.png")
     plt.savefig(ruta_front, dpi=300, bbox_inches='tight')
     plt.close()
     
@@ -120,10 +134,14 @@ def calcular_cortes_caja(archivo_txt):
 
     try:
         espesor_mdf_mm = float(input("Espesor del MDF (mm): "))
+        offset_str = input("Desplazamiento asimétrico de ejes (mm) [Por defecto: 25]: ")
+        offset_mm = float(offset_str) if offset_str.strip() else 25.0
     except ValueError:
+        print("[!] Error en el ingreso de datos.")
         return
 
     espesor_cm = round(espesor_mdf_mm / 10.0, 1)
+    offset_cm = round(offset_mm / 10.0, 2)
     
     phi = (1.0 + math.sqrt(5.0)) / 2.0
     root_phi = math.sqrt(phi)
@@ -154,16 +172,21 @@ def calcular_cortes_caja(archivo_txt):
         ["1x Panel Frontal Caja", h_frontal, w_int],
     ]
     
+    # Cálculo geométrico del túnel aislando el espesor frontal
     l_falso_piso = round(d_int - h_puerto_cm - espesor_cm, 1)
+    l_req_interna = round(l_puerto_cm - espesor_cm, 1)
+    
     l_falso_respaldo = 0
     l_falso_techo = 0
+    l_mdf_recto = 0
     alerta_colision = False
     
-    if l_puerto_cm <= l_falso_piso:
+    if l_req_interna <= l_falso_piso:
         tipo_puerto = "Línea Recta Interna (I)"
-        cortes.append(["1x Falso Piso Puerto (Recto)", w_int, l_puerto_cm])
+        l_mdf_recto = l_req_interna
+        cortes.append(["1x Falso Piso Puerto (Recto)", w_int, l_mdf_recto])
     else:
-        l_restante = round(l_puerto_cm - l_falso_piso, 1)
+        l_restante = round(l_req_interna - l_falso_piso, 1)
         l_falso_respaldo_max = round(h_int - (2 * h_puerto_cm) - (2 * espesor_cm), 1)
         
         if l_restante <= l_falso_respaldo_max:
@@ -189,7 +212,7 @@ def calcular_cortes_caja(archivo_txt):
     pdf.add_page()
     
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(0, 10, f"Planos Acústicos EBS / Laberinto Interno - {nombre_parlante}", ln=True, align='C')
+    pdf.cell(0, 10, f"Planos Acústicos EBS y Deflector Asimétrico - {nombre_parlante}", ln=True, align='C')
     pdf.ln(5)
     
     pdf.set_font("Arial", 'B', 12)
@@ -215,8 +238,24 @@ def calcular_cortes_caja(archivo_txt):
         pdf.set_text_color(255, 0, 0)
         pdf.cell(0, 6, "[!] RIESGO: El falso techo excede la profundidad interna.", ln=True)
         pdf.set_text_color(0, 0, 0)
-    pdf.ln(10)
+    pdf.ln(5)
+
+    # --- Nueva sección de Coordenadas ---
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 8, f"Coordenadas de Ruteo (Desplazamiento Eje Z: {offset_mm} mm):", ln=True)
+    pdf.set_font("Arial", '', 10)
+    pdf.cell(0, 6, "Medidas desde la esquina inferior izquierda del Panel Frontal (0,0)", ln=True)
     
+    centro_x_base = w_int / 2
+    centro_y_woofer = h_frontal * 0.35
+    centro_y_tweeter = h_frontal * 0.75
+    x_izq = centro_x_base - offset_cm
+    x_der = centro_x_base + offset_cm
+
+    pdf.cell(0, 6, f"> Caja L (Izquierda): Eje X = {x_izq:.1f} cm | Y Woofer = {centro_y_woofer:.1f} cm | Y Tweeter = {centro_y_tweeter:.1f} cm", ln=True)
+    pdf.cell(0, 6, f"> Caja R (Derecha)  : Eje X = {x_der:.1f} cm | Y Woofer = {centro_y_woofer:.1f} cm | Y Tweeter = {centro_y_tweeter:.1f} cm", ln=True)
+    pdf.ln(5)
+
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 8, f"Despiece MDF {espesor_mdf_mm:.0f} mm:", ln=True)
     pdf.set_font("Courier", '', 10)
@@ -226,14 +265,14 @@ def calcular_cortes_caja(archivo_txt):
 
     if GRAFICOS_DISPONIBLES:
         ruta_lat, ruta_front = renderizar_planos_2d(
-            base_name, d_int, w_int, h_int, espesor_cm, h_puerto_cm, l_puerto_cm, 
-            l_falso_piso, l_falso_respaldo, l_falso_techo, tipo_puerto
+            base_name, d_int, w_int, h_int, espesor_cm, h_puerto_cm, l_mdf_recto, 
+            l_falso_piso, l_falso_respaldo, l_falso_techo, tipo_puerto, offset_cm
         )
         pdf.add_page()
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(0, 10, "Esquemática de Ensamblaje y Traslapes", ln=True, align='C')
-        pdf.image(ruta_lat, x=10, y=30, w=90)
-        pdf.image(ruta_front, x=110, y=30, w=90)
+        pdf.cell(0, 10, "Esquemática de Ensamblaje y Deflectores Espejados", ln=True, align='C')
+        pdf.image(ruta_lat, x=60, y=25, w=90)
+        pdf.image(ruta_front, x=10, y=140, w=190)
 
     pdf_filename = os.path.join("data", f"{base_name}_panels.pdf")
     pdf.output(pdf_filename)

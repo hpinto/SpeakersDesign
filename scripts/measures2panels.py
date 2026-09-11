@@ -191,13 +191,14 @@ def calcular_cortes_caja(archivo_txt):
         offset_cm = round(offset_ideal, 2)
     
     cortes = [
-        ["2x Laterales Caja", h_ext, d_ext],
-        ["2x Superior/Inferior Caja", w_int, d_ext],
-        ["1x Panel Trasero Caja", h_int, w_int],
-        ["1x Panel Frontal Caja", h_frontal, w_int],
+        ["4x Laterales Caja", h_ext, d_ext],
+        ["4x Superior/Inferior Caja", w_int, d_ext],
+        ["2x Panel Trasero Caja", h_int, w_int],
+        ["2x Panel Frontal Caja", h_frontal, w_int],
     ]
     
-    l_falso_piso = round(d_int - h_puerto_cm - espesor_cm, 1)
+    # --- FÓRMULAS GEOMÉTRICAS CORREGIDAS PARA EL PUERTO ---
+    l_falso_piso = round(d_int - h_puerto_cm, 1)
     l_req_interna = round(l_puerto_cm - espesor_cm, 1)
     
     l_falso_respaldo = 0
@@ -208,7 +209,7 @@ def calcular_cortes_caja(archivo_txt):
     if l_req_interna <= l_falso_piso:
         tipo_puerto = "Línea Recta Interna (I)"
         l_mdf_recto = l_req_interna
-        cortes.append(["1x Falso Piso Puerto (Recto)", w_int, l_mdf_recto])
+        cortes.append(["2x Falso Piso Puerto (Recto)", w_int, l_mdf_recto])
     else:
         l_restante = round(l_req_interna - l_falso_piso, 1)
         l_falso_respaldo_max = round(h_int - (2 * h_puerto_cm) - (2 * espesor_cm), 1)
@@ -216,17 +217,17 @@ def calcular_cortes_caja(archivo_txt):
         if l_restante <= l_falso_respaldo_max:
             tipo_puerto = "Laberinto Interno (1 Codo - L)"
             l_falso_respaldo = l_restante
-            cortes.append(["1x Falso Piso Puerto (Base)", w_int, l_falso_piso])
-            cortes.append(["1x Falso Respaldo Puerto (Sube)", w_int, l_falso_respaldo])
+            cortes.append(["2x Falso Piso Puerto (Base)", w_int, l_falso_piso])
+            cortes.append(["2x Falso Respaldo Puerto (Sube)", w_int, l_falso_respaldo])
         else:
             tipo_puerto = "Laberinto Interno (2 Codos - U)"
             l_falso_respaldo = l_falso_respaldo_max
             l_falso_techo = round(l_restante - l_falso_respaldo_max, 1)
-            cortes.append(["1x Falso Piso Puerto (Base)", w_int, l_falso_piso])
-            cortes.append(["1x Falso Respaldo Puerto (Sube)", w_int, l_falso_respaldo])
-            cortes.append(["1x Falso Techo Puerto (Vuelve)", w_int, l_falso_techo])
+            cortes.append(["2x Falso Piso Puerto (Base)", w_int, l_falso_piso])
+            cortes.append(["2x Falso Respaldo Puerto (Sube)", w_int, l_falso_respaldo])
+            cortes.append(["2x Falso Techo Puerto (Vuelve)", w_int, l_falso_techo])
             
-            espacio_disponible_techo = round(d_int - h_puerto_cm - espesor_cm, 1)
+            espacio_disponible_techo = round(d_int - (2 * h_puerto_cm) - espesor_cm, 1)
             if l_falso_techo > espacio_disponible_techo:
                 alerta_colision_techo = True
 

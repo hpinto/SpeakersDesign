@@ -236,7 +236,7 @@ def calcular_cortes_caja(archivo_txt):
     pdf.add_page()
     
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(0, 10, f"Planos Acústicos EBS y Deflector Asimétrico - {nombre_parlante}", ln=True, align='C')
+    pdf.cell(0, 10, f"Planos Acústicos EBS y Deflector Asimétrico", ln=True, align='C')
     pdf.cell(0, 10, f"{nombre_parlante}", ln=True, align='C')
     pdf.ln(5)
     

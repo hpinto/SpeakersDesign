@@ -30,7 +30,7 @@ def renderizar_planos_2d(base_name, d_int, w_int, h_int, espesor, h_puerto, l_md
     ax.set_ylim(-2, h_ext + 2)
     ax.set_aspect('equal')
     ax.axis('off')
-    ax.set_title("Corte Lateral (Mecánica de Fluidos)", fontsize=12, fontweight='bold', pad=15)
+    ax.set_title("Corte Lateral (Mecánica de Fluidos EBS Dinámico)", fontsize=12, fontweight='bold', pad=15)
     
     # Chasis Exterior
     agregar_panel(ax, 0, 0, d_ext, espesor) 
@@ -112,7 +112,6 @@ def calcular_cortes_caja(archivo_txt):
 
     fs = sd = vas = qts = 0.0
     
-    # Extracción de datos desde el formato de texto de REW
     with open(archivo_txt, 'r', encoding='utf-8') as f:
         contenido = f.read()
         
@@ -127,29 +126,36 @@ def calcular_cortes_caja(archivo_txt):
         if match_qts: qts = float(match_qts.group(1))
         
     if not all([fs, sd, vas, qts]):
-        print("[!] Error: No se encontraron todos los parámetros requeridos (Fs, Sd, Vas, Qts) en el archivo TXT.")
+        print("[!] Error: No se encontraron todos los parámetros requeridos en el archivo TXT.")
         return
         
     nombre_parlante = os.path.basename(archivo_txt).replace(".txt", "").replace("_", " ")
 
     try:
         espesor_mdf_mm = float(input("Espesor del MDF (mm): "))
-        offset_str = input("Desplazamiento asimétrico de ejes (mm) [Por defecto: 25]: ")
-        offset_mm = float(offset_str) if offset_str.strip() else 25.0
+        diametro_str = input("Diámetro del transductor mayor (pulgadas) [Por defecto: 5.25]: ")
+        diametro_pulgadas = float(diametro_str) if diametro_str.strip() else 5.25
     except ValueError:
         print("[!] Error en el ingreso de datos.")
         return
 
     espesor_cm = round(espesor_mdf_mm / 10.0, 1)
-    offset_cm = round(offset_mm / 10.0, 2)
     
     phi = (1.0 + math.sqrt(5.0)) / 2.0
     root_phi = math.sqrt(phi)
     
+    # 1. Cálculo del Volumen Neto óptimo EBS
     vb_neto = (2.0 - (1.0 / phi)) * 15.0 * vas * (math.pow(qts, 2.87))
-    fb = fs
+    
+    # 2. Cálculo Dinámico de Alfa (alfa = Vas / Vb) y del factor h
+    alfa = vas / vb_neto
+    h_dinamico = max(0.5, min(0.9, 0.9 * qts / math.sqrt(alfa)))
+    fb = round(h_dinamico * fs, 2)
+    
     area_puerto = sd * (root_phi - 1.0)
-    l_puerto_cm = round((30000.0 * area_puerto) / (vb_neto * (fb ** 2)) - (0.823 * math.sqrt(area_puerto)), 1)
+    
+    # Longitud de puerto con factor de corrección de extremos (End Corr = 2.2)
+    l_puerto_cm = round((28068.0 * area_puerto) / (vb_neto * (fb ** 2)) - (2.2 * math.sqrt(area_puerto)), 1)
     
     w_int_neto = round(((vb_neto * 1000.0) / (phi ** 1.5)) ** (1.0 / 3.0), 1)
     vol_aire_puerto = (area_puerto * l_puerto_cm) / 1000.0
@@ -161,9 +167,28 @@ def calcular_cortes_caja(archivo_txt):
     h_int = round(w_int * phi, 1)
     h_puerto_cm = round(area_puerto / w_int, 1)
     
+    w_ext = round(w_int + (2 * espesor_cm), 1)
     h_ext = round(h_int + (2 * espesor_cm), 1)
     d_ext = round(d_int + (2 * espesor_cm), 1)
     h_frontal = round(h_int - h_puerto_cm, 1)
+
+    # --- CÁLCULO DEL NODO ÁUREO Y AUDITORÍA DE COLISIÓN ---
+    x_ideal_ext = w_ext / phi
+    offset_ideal = abs(x_ideal_ext - (w_ext / 2.0))
+    
+    radio_jaula_cm = (diametro_pulgadas * 2.54) / 2.0
+    margen_ruteo_cm = 1.0 
+    offset_maximo = (w_int / 2.0) - (radio_jaula_cm + margen_ruteo_cm)
+    
+    alerta_colision_offset = False
+    if offset_maximo < 0:
+        print("\n[!] RIESGO CRÍTICO: El transductor es demasiado grande para el ancho interno.")
+        offset_cm = 0.0
+    elif offset_ideal > offset_maximo:
+        offset_cm = round(offset_maximo, 2)
+        alerta_colision_offset = True
+    else:
+        offset_cm = round(offset_ideal, 2)
     
     cortes = [
         ["2x Laterales Caja", h_ext, d_ext],
@@ -172,14 +197,13 @@ def calcular_cortes_caja(archivo_txt):
         ["1x Panel Frontal Caja", h_frontal, w_int],
     ]
     
-    # Cálculo geométrico del túnel aislando el espesor frontal
     l_falso_piso = round(d_int - h_puerto_cm - espesor_cm, 1)
     l_req_interna = round(l_puerto_cm - espesor_cm, 1)
     
     l_falso_respaldo = 0
     l_falso_techo = 0
     l_mdf_recto = 0
-    alerta_colision = False
+    alerta_colision_techo = False
     
     if l_req_interna <= l_falso_piso:
         tipo_puerto = "Línea Recta Interna (I)"
@@ -204,7 +228,7 @@ def calcular_cortes_caja(archivo_txt):
             
             espacio_disponible_techo = round(d_int - h_puerto_cm - espesor_cm, 1)
             if l_falso_techo > espacio_disponible_techo:
-                alerta_colision = True
+                alerta_colision_techo = True
 
     base_name = os.path.basename(archivo_txt).replace(".txt", "")
     
@@ -216,10 +240,10 @@ def calcular_cortes_caja(archivo_txt):
     pdf.ln(5)
     
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 8, "Parámetros Thiele-Small y Matriz EBS:", ln=True)
+    pdf.cell(0, 8, f"Parámetros Thiele-Small y Matriz EBS Dinámica (h = {h_dinamico:.2f}):", ln=True)
     pdf.set_font("Arial", '', 11)
-    pdf.cell(0, 6, f"Frecuencia (Fs): {fs} Hz | Vol (Vas): {vas} L | Area (Sd): {sd} cm2", ln=True)
-    pdf.cell(0, 6, f"Factor (Qts): {qts} | Sintonía (Fb): {fb} Hz", ln=True)
+    pdf.cell(0, 6, f"Frecuencia Fs: {fs} Hz | Vol Vas: {vas} L | Area Sd: {sd} cm2", ln=True)
+    pdf.cell(0, 6, f"Factor Qts: {qts} | Alfa (Vas/Vb): {alfa:.3f} | Sintonía (Fb): {fb} Hz", ln=True)
     pdf.ln(5)
     
     pdf.set_font("Arial", 'B', 12)
@@ -233,19 +257,27 @@ def calcular_cortes_caja(archivo_txt):
     pdf.cell(0, 8, f"Resonador Termodinámico ({tipo_puerto}):", ln=True)
     pdf.set_font("Arial", '', 11)
     pdf.cell(0, 6, f"Ranura: {h_puerto_cm} cm | Ancho: {w_int} cm | Longitud Acústica: {l_puerto_cm} cm", ln=True)
-    pdf.cell(0, 6, f"Área Transversal Estática: {area_puerto:.1f} cm2 (27.2% de Sd)", ln=True)
-    if alerta_colision:
+    pdf.cell(0, 6, f"Área Transversal Estática: {area_puerto:.1f} cm2 | End Corr: 2.2", ln=True)
+    if alerta_colision_techo:
         pdf.set_text_color(255, 0, 0)
         pdf.cell(0, 6, "[!] RIESGO: El falso techo excede la profundidad interna.", ln=True)
         pdf.set_text_color(0, 0, 0)
     pdf.ln(5)
 
-    # --- Nueva sección de Coordenadas ---
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 8, f"Coordenadas de Ruteo (Desplazamiento Eje Z: {offset_mm} mm):", ln=True)
+    pdf.cell(0, 8, f"Coordenadas de Ruteo (Desplazamiento Dinámico Áureo):", ln=True)
     pdf.set_font("Arial", '', 10)
     pdf.cell(0, 6, "Medidas desde la esquina inferior izquierda del Panel Frontal (0,0)", ln=True)
     
+    pdf.cell(0, 6, f"Offset Áureo Ideal: {offset_ideal*10:.1f} mm | Tolerancia Mecánica Max: {max(0, offset_maximo)*10:.1f} mm", ln=True)
+    
+    if alerta_colision_offset:
+        pdf.set_text_color(255, 0, 0)
+        pdf.cell(0, 6, f"[!] COLISIÓN EVITADA: Offset truncado a {offset_cm*10:.1f} mm para proteger jaula de {diametro_pulgadas}\".", ln=True)
+        pdf.set_text_color(0, 0, 0)
+    else:
+        pdf.cell(0, 6, f"[+] SEGURIDAD MECÁNICA: El offset áureo de {offset_cm*10:.1f} mm no colisiona.", ln=True)
+        
     centro_x_base = w_int / 2
     centro_y_woofer = h_frontal * 0.35
     centro_y_tweeter = h_frontal * 0.75

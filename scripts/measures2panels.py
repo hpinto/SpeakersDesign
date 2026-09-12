@@ -276,7 +276,7 @@ def calcular_cortes_caja(archivo_txt):
     
     if alerta_colision_offset:
         pdf.set_text_color(255, 0, 0)
-        pdf.cell(0, 6, f"[!] COLISIÓN EVITADA: Offset truncado a {offset_cm*10:.1f} mm para proteger jaula de {diametro_pulgadas}\".", ln=True)
+        pdf.cell(0, 6, f"[!] Offset truncado a {offset_cm*10:.1f} mm para proteger jaula de {diametro_pulgadas}\".", ln=True)
         pdf.set_text_color(0, 0, 0)
     else:
         pdf.cell(0, 6, f"[+] SEGURIDAD MECÁNICA: El offset áureo de {offset_cm*10:.1f} mm no colisiona.", ln=True)

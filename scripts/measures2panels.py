@@ -95,8 +95,9 @@ def renderizar_planos_2d(base_name, d_int, w_int, h_int, espesor, h_puerto, l_md
         
         ax_obj.text(w_ext / 2, espesor + (h_puerto / 2), f"Reflex: {h_puerto} cm", color='black', ha='center', va='center', fontsize=9, zorder=6)
 
-    dibujar_frontal(ax_l, -offset_cm, "Caja Izquierda (L)")
-    dibujar_frontal(ax_r, offset_cm, "Caja Derecha (R)")
+    # Inversión de offset para apuntar al interior
+    dibujar_frontal(ax_l, offset_cm, "Caja Izquierda (L)")
+    dibujar_frontal(ax_r, -offset_cm, "Caja Derecha (R)")
     
     plt.tight_layout()
     ruta_front = os.path.join("data", f"{base_name}_frontales.png")
@@ -283,8 +284,10 @@ def calcular_cortes_caja(archivo_txt):
     centro_x_base = w_int / 2
     centro_y_woofer = h_frontal * 0.35
     centro_y_tweeter = h_frontal * 0.75
-    x_izq = centro_x_base - offset_cm
-    x_der = centro_x_base + offset_cm
+    
+    # Inversión de offset en las coordenadas textuales
+    x_izq = centro_x_base + offset_cm
+    x_der = centro_x_base - offset_cm
 
     pdf.cell(0, 6, f"> Caja L (Izquierda): Eje X = {x_izq:.1f} cm | Y Woofer = {centro_y_woofer:.1f} cm | Y Tweeter = {centro_y_tweeter:.1f} cm", ln=True)
     pdf.cell(0, 6, f"> Caja R (Derecha)  : Eje X = {x_der:.1f} cm | Y Woofer = {centro_y_woofer:.1f} cm | Y Tweeter = {centro_y_tweeter:.1f} cm", ln=True)

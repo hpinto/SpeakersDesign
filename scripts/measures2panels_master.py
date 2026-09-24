@@ -116,7 +116,7 @@ def calcular_offset(w_ext, w_int, diam_pulg):
         
     return offset_final, offset_ideal, offset_maximo, alerta
 
-def renderizar_esquemas(base_name, variante, d_int, w_int, h_int, espesor, offset_cm, es_caja_cerrada, param_puerto):
+def renderizar_esquemas(base_name, variante, d_int, w_int, h_int, espesor, offset_cm, es_caja_cerrada, param_puerto, es_sandwich=False):
     d_ext = round(d_int + (2 * espesor), 1)
     h_ext = round(h_int + (2 * espesor), 1)
     w_ext = round(w_int + (2 * espesor), 1)
@@ -133,12 +133,12 @@ def renderizar_esquemas(base_name, variante, d_int, w_int, h_int, espesor, offse
     ax.set_xlim(-2, d_ext + 4); ax.set_ylim(-2, h_ext + 2); ax.set_aspect('equal'); ax.axis('off')
     ax.set_title(f"Corte Lateral - {variante}", fontsize=12, fontweight='bold', pad=15)
     
-    agregar_panel(ax, 0, 0, d_ext, espesor) 
-    agregar_panel(ax, 0, h_ext - espesor, d_ext, espesor) 
-    
-    if es_caja_cerrada:
-        agregar_panel(ax, 0, espesor, espesor, h_int) 
-        agregar_panel(ax, d_ext - espesor, espesor, espesor, h_int)
+    if es_sandwich:
+        agregar_panel(ax, 0, 0, espesor, h_ext) # Frontal completo
+        agregar_panel(ax, d_ext - espesor, 0, espesor, h_ext) # Trasero completo
+        agregar_panel(ax, espesor, h_ext - espesor, d_int, espesor) # Techo empotrado
+        agregar_panel(ax, espesor, 0, d_int, espesor) # Piso empotrado
+        
         if param_puerto.get('es_aperiodica', False):
             diam_ap = param_puerto.get('diam_ap', 5.0)
             y_centro_vent = round(espesor + (h_int * 0.35), 1)
@@ -146,40 +146,46 @@ def renderizar_esquemas(base_name, variante, d_int, w_int, h_int, espesor, offse
             ax.add_patch(patches.Rectangle((d_ext - espesor, y_vent_inf), espesor, diam_ap, color='white', zorder=4))
             ax.add_patch(patches.Rectangle((d_ext - espesor, y_vent_inf), espesor, diam_ap, fill=False, hatch='///', edgecolor='red', zorder=5))
             ax.text(d_ext + 0.5, y_centro_vent, "Variovent", color='red', fontsize=8, va='center', rotation=270, zorder=6)
-    else:
-        if variante == "MDF":
-            h_p = param_puerto['h_puerto']
-            l_p = param_puerto['l_puerto']
-            tipo = param_puerto['tipo']
-            
-            agregar_panel(ax, 0, espesor + h_p, espesor, h_int - h_p) 
-            agregar_panel(ax, d_ext - espesor, espesor, espesor, h_int) 
-            
-            if "Recta" in tipo:
-                agregar_panel(ax, espesor, espesor + h_p, l_p - espesor, espesor)
-            else:
-                l_falso_piso = param_puerto.get('l_falso_piso', 0.0)
-                l_falso_respaldo = param_puerto.get('l_falso_respaldo', 0.0)
-                l_falso_techo = param_puerto.get('l_falso_techo', 0.0)
-                
-                agregar_panel(ax, espesor, espesor + h_p, l_falso_piso, espesor) 
-                x_respaldo = round(espesor + l_falso_piso - espesor, 1)
-                y_respaldo = round(espesor + h_p + espesor, 1)
-                agregar_panel(ax, x_respaldo, y_respaldo, espesor, l_falso_respaldo) 
-                if "2 Codos" in tipo:
-                    x_techo = round(x_respaldo - l_falso_techo, 1)
-                    y_techo = round(y_respaldo + l_falso_respaldo, 1)
-                    agregar_panel(ax, x_techo, y_techo, l_falso_techo, espesor)
-        else: # PVC
+        elif not es_caja_cerrada and variante == "PVC":
             l_pvc = param_puerto['l_puerto']
             d_pvc = param_puerto['d_pvc']
-            agregar_panel(ax, 0, espesor, espesor, h_int) 
-            agregar_panel(ax, d_ext - espesor, espesor, espesor, h_int)
-            y_centro_tubo = espesor + (h_int * 0.25)
+            y_centro_tubo = round(espesor + (h_int * 0.25), 1)
             y_tubo_inf = y_centro_tubo - (d_pvc / 2.0)
             tubo = patches.Rectangle((d_ext - espesor - l_pvc, y_tubo_inf), l_pvc, d_pvc, linewidth=1.5, edgecolor='#555555', facecolor='#D3D3D3', alpha=0.7, zorder=2)
             ax.add_patch(tubo)
             ax.text(d_ext - espesor - (l_pvc/2), y_centro_tubo, f"PVC {l_pvc}cm", color='black', ha='center', va='center', fontsize=8, rotation=0, zorder=4)
+    else:
+        # Lógica original para MDF Ranurado
+        agregar_panel(ax, 0, 0, d_ext, espesor) 
+        agregar_panel(ax, 0, h_ext - espesor, d_ext, espesor) 
+        
+        if es_caja_cerrada:
+            agregar_panel(ax, 0, espesor, espesor, h_int) 
+            agregar_panel(ax, d_ext - espesor, espesor, espesor, h_int)
+        else:
+            if variante == "MDF":
+                h_p = param_puerto['h_puerto']
+                l_p = param_puerto['l_puerto']
+                tipo = param_puerto['tipo']
+                
+                agregar_panel(ax, 0, espesor + h_p, espesor, h_int - h_p) 
+                agregar_panel(ax, d_ext - espesor, espesor, espesor, h_int) 
+                
+                if "Recta" in tipo:
+                    agregar_panel(ax, espesor, espesor + h_p, l_p - espesor, espesor)
+                else:
+                    l_falso_piso = param_puerto.get('l_falso_piso', 0.0)
+                    l_falso_respaldo = param_puerto.get('l_falso_respaldo', 0.0)
+                    l_falso_techo = param_puerto.get('l_falso_techo', 0.0)
+                    
+                    agregar_panel(ax, espesor, espesor + h_p, l_falso_piso, espesor) 
+                    x_respaldo = round(espesor + l_falso_piso - espesor, 1)
+                    y_respaldo = round(espesor + h_p + espesor, 1)
+                    agregar_panel(ax, x_respaldo, y_respaldo, espesor, l_falso_respaldo) 
+                    if "2 Codos" in tipo:
+                        x_techo = round(x_respaldo - l_falso_techo, 1)
+                        y_techo = round(y_respaldo + l_falso_respaldo, 1)
+                        agregar_panel(ax, x_techo, y_techo, l_falso_techo, espesor)
 
     plt.tight_layout()
     ruta_lat = os.path.join("data", f"{base_name}_lat_{variante}.png")
@@ -192,14 +198,20 @@ def renderizar_esquemas(base_name, variante, d_int, w_int, h_int, espesor, offse
         ax_obj.set_xlim(-2, w_ext + 4); ax_obj.set_ylim(-2, h_ext + 2); ax_obj.set_aspect('equal'); ax_obj.axis('off')
         ax_obj.set_title(titulo, fontsize=12, fontweight='bold', pad=15)
         
-        agregar_panel(ax_obj, 0, 0, espesor, h_ext)
-        agregar_panel(ax_obj, w_ext - espesor, 0, espesor, h_ext)
-        agregar_panel(ax_obj, espesor, 0, w_int, espesor)
-        agregar_panel(ax_obj, espesor, h_ext - espesor, w_int, espesor)
-        
-        h_frontal = round(h_int - param_puerto.get('h_puerto', 0.0) if variante == "MDF" and not es_caja_cerrada else h_int, 1)
-        y_base_baffle = round(espesor + param_puerto.get('h_puerto', 0.0) if variante == "MDF" and not es_caja_cerrada else espesor, 1)
-        agregar_panel(ax_obj, espesor, y_base_baffle, w_int, h_frontal)
+        if es_sandwich:
+            agregar_panel(ax_obj, 0, 0, w_ext, h_ext)
+            ax_obj.add_patch(patches.Rectangle((espesor, espesor), w_int, h_int, linewidth=1, edgecolor='#555555', fill=False, linestyle='--', zorder=4))
+            y_base_baffle = espesor
+            h_frontal = h_int
+        else:
+            agregar_panel(ax_obj, 0, 0, espesor, h_ext)
+            agregar_panel(ax_obj, w_ext - espesor, 0, espesor, h_ext)
+            agregar_panel(ax_obj, espesor, 0, w_int, espesor)
+            agregar_panel(ax_obj, espesor, h_ext - espesor, w_int, espesor)
+            
+            h_frontal = round(h_int - param_puerto.get('h_puerto', 0.0) if variante == "MDF" and not es_caja_cerrada else h_int, 1)
+            y_base_baffle = round(espesor + param_puerto.get('h_puerto', 0.0) if variante == "MDF" and not es_caja_cerrada else espesor, 1)
+            agregar_panel(ax_obj, espesor, y_base_baffle, w_int, h_frontal)
         
         centro_x = round((w_ext / 2) + x_shift, 1)
         centro_y_woofer = round(y_base_baffle + (h_frontal * 0.35), 1)
@@ -214,10 +226,10 @@ def renderizar_esquemas(base_name, variante, d_int, w_int, h_int, espesor, offse
         ax_obj.add_patch(patches.Circle((centro_x, centro_y_tweeter), radio_t * 0.6, linewidth=1, edgecolor='#222222', facecolor='#2F2F2F', zorder=5))
         
         if not es_caja_cerrada:
-            if variante == "MDF":
+            if variante == "MDF" and not es_sandwich:
                 h_p = param_puerto['h_puerto']
                 ax_obj.text(w_ext / 2, espesor + (h_p / 2), f"Reflex: {h_p:.1f} cm", color='black', ha='center', va='center', fontsize=9, zorder=6)
-            else:
+            elif variante == "PVC":
                 d_pvc = param_puerto['d_pvc']
                 centro_y_puerto = round(espesor + (h_int * 0.25), 1)
                 ax_obj.add_patch(patches.Circle((w_ext / 2, centro_y_puerto), d_pvc / 2, linewidth=1, edgecolor='#555555', facecolor='#111111', alpha=0.3, zorder=3, linestyle='--'))
@@ -349,11 +361,15 @@ def main():
     d_mdf = round(w_mdf * root_phi, 1)
     h_mdf = round(w_mdf * phi, 1)
     
-    cortes_mdf = [["4x Laterales", round(h_mdf+(2*espesor_cm),1), round(d_mdf+(2*espesor_cm),1)],
-                  ["4x Sup/Inf", w_mdf, round(d_mdf+(2*espesor_cm),1)],
-                  ["2x Panel Trasero", h_mdf, w_mdf],
-                  ["2x Panel Frontal", round(h_mdf - h_pmdf,1), w_mdf]]
-    if not es_caja_cerrada:
+    if es_caja_cerrada:
+        cortes_mdf = [["4x Panel Frontal/Trasero", round(h_mdf+(2*espesor_cm),1), round(w_mdf+(2*espesor_cm),1)],
+                      ["4x Sup/Inf (Techo/Piso)", round(w_mdf+(2*espesor_cm),1), d_mdf],
+                      ["4x Laterales", h_mdf, d_mdf]]
+    else:
+        cortes_mdf = [["4x Laterales", round(h_mdf+(2*espesor_cm),1), round(d_mdf+(2*espesor_cm),1)],
+                      ["4x Sup/Inf", w_mdf, round(d_mdf+(2*espesor_cm),1)],
+                      ["2x Panel Trasero", h_mdf, w_mdf],
+                      ["2x Panel Frontal", round(h_mdf - h_pmdf,1), w_mdf]]
         l_falso_piso = round(d_mdf - h_pmdf, 1)
         l_req_int = round(l_pmdf - espesor_cm, 1)
         if l_req_int <= l_falso_piso + 0.1:
@@ -393,10 +409,9 @@ def main():
     d_pvc_dim = round(w_pvc * root_phi, 1)
     h_pvc = round(w_pvc * phi, 1)
     
-    cortes_pvc = [["4x Laterales", round(h_pvc+(2*espesor_cm),1), round(d_pvc_dim+(2*espesor_cm),1)],
-                  ["4x Sup/Inf", w_pvc, round(d_pvc_dim+(2*espesor_cm),1)],
-                  ["2x Panel Trasero", h_pvc, w_pvc],
-                  ["2x Panel Frontal", h_pvc, w_pvc]]
+    cortes_pvc = [["4x Panel Frontal/Trasero", round(h_pvc+(2*espesor_cm),1), round(w_pvc+(2*espesor_cm),1)],
+                  ["4x Sup/Inf (Techo/Piso)", round(w_pvc+(2*espesor_cm),1), d_pvc_dim],
+                  ["4x Laterales", h_pvc, d_pvc_dim]]
 
     off_p_val, _, _, off_p_alert = calcular_offset(round(w_pvc+(2*espesor_cm),1), w_pvc, diam_pulg)
 
@@ -406,11 +421,13 @@ def main():
         graficos_gen.append(ruta_spl)
         
         r_mdf_lat, r_mdf_front = renderizar_esquemas(base_name, "MDF", d_mdf, w_mdf, h_mdf, espesor_cm, off_m_val, es_caja_cerrada, 
-                                                     {'h_puerto':h_pmdf, 'l_puerto':l_pmdf, 'tipo':tipo_pmdf, 'l_falso_piso':l_falso_piso, 'l_falso_respaldo':l_falso_respaldo, 'l_falso_techo':l_falso_techo, 'es_aperiodica': es_aperiodica, 'diam_ap': diam_ap})
+                                                     {'h_puerto':h_pmdf, 'l_puerto':l_pmdf, 'tipo':tipo_pmdf, 'l_falso_piso':l_falso_piso, 'l_falso_respaldo':l_falso_respaldo, 'l_falso_techo':l_falso_techo, 'es_aperiodica': es_aperiodica, 'diam_ap': diam_ap},
+                                                     es_sandwich=es_caja_cerrada)
         graficos_gen.extend([r_mdf_lat, r_mdf_front])
         
         r_pvc_lat, r_pvc_front = renderizar_esquemas(base_name, "PVC", d_pvc_dim, w_pvc, h_pvc, espesor_cm, off_p_val, es_caja_cerrada, 
-                                                     {'h_puerto':0.0, 'l_puerto':l_pvc, 'd_pvc':d_pvc, 'es_aperiodica': es_aperiodica, 'diam_ap': diam_ap})
+                                                     {'h_puerto':0.0, 'l_puerto':l_pvc, 'd_pvc':d_pvc, 'es_aperiodica': es_aperiodica, 'diam_ap': diam_ap},
+                                                     es_sandwich=True)
         graficos_gen.extend([r_pvc_lat, r_pvc_front])
 
     pdf = FPDF()
@@ -437,7 +454,7 @@ def main():
     if es_caja_cerrada:
         pdf.add_page()
         pdf.set_font("Arial", 'B', 14)
-        titulo = "Arquitectura Aperiódica (Variovent)" if es_aperiodica else "Arquitectura Sellada Única"
+        titulo = "Arquitectura Aperiódica (Variovent) - Topología Sándwich" if es_aperiodica else "Arquitectura Sellada Única - Topología Sándwich"
         pdf.cell(0, 10, titulo, ln=True)
         pdf.set_font("Arial", '', 11)
         pdf.cell(0, 6, f"Dimensiones Internas: {w_mdf} x {d_mdf} x {h_mdf} cm", ln=True)
@@ -477,7 +494,7 @@ def main():
         # PÁGINA 3: PVC
         pdf.add_page()
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(0, 10, "Opción B: Gabinete con Tubo Cilíndrico (PVC)", ln=True)
+        pdf.cell(0, 10, "Opción B: Gabinete con Tubo Cilíndrico (PVC) - Topología Sándwich", ln=True)
         pdf.set_font("Arial", '', 11)
         pdf.cell(0, 6, f"Volumen Bruto (optimizado): {vb_b_pvc} L", ln=True)
         pdf.cell(0, 6, f"Internas: {w_pvc} x {d_pvc_dim} x {h_pvc} cm | PVC: {estado_pvc}", ln=True)

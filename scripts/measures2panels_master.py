@@ -141,7 +141,7 @@ def renderizar_esquemas(base_name, variante, d_int, w_int, h_int, espesor, offse
         agregar_panel(ax, d_ext - espesor, espesor, espesor, h_int)
         if param_puerto.get('es_aperiodica', False):
             diam_ap = param_puerto.get('diam_ap', 5.0)
-            y_centro_vent = espesor + (h_int * 0.5)
+            y_centro_vent = round(espesor + (h_int * 0.35), 1)
             y_vent_inf = y_centro_vent - (diam_ap / 2.0)
             ax.add_patch(patches.Rectangle((d_ext - espesor, y_vent_inf), espesor, diam_ap, color='white', zorder=4))
             ax.add_patch(patches.Rectangle((d_ext - espesor, y_vent_inf), espesor, diam_ap, fill=False, hatch='///', edgecolor='red', zorder=5))
@@ -224,7 +224,7 @@ def renderizar_esquemas(base_name, variante, d_int, w_int, h_int, espesor, offse
                 ax_obj.text(w_ext / 2, centro_y_puerto, f"PVC Atrás", color='#333333', ha='center', va='center', fontsize=8, zorder=6)
         elif param_puerto.get('es_aperiodica', False):
             diam_ap = param_puerto.get('diam_ap', 5.0)
-            centro_y_vent = round(espesor + (h_ext * 0.5), 1)
+            centro_y_vent = centro_y_woofer
             ax_obj.add_patch(patches.Circle((w_ext / 2, centro_y_vent), diam_ap / 2, linewidth=1, edgecolor='red', facecolor='#222222', alpha=0.3, zorder=3, linestyle='--'))
             ax_obj.text(w_ext / 2, centro_y_vent, f"Válvula {diam_ap}cm (Atrás)", color='red', ha='center', va='center', fontsize=8, zorder=6)
 

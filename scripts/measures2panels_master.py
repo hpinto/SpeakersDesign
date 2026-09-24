@@ -58,11 +58,11 @@ def solucionador_numerico_thiele_small(qts, vas, fs, ql=7.0):
                     mejor_fb = fb_test
     return round(mejor_vb, 2), round(mejor_fb, 2)
 
-def graficar_spl(fs, qts, vas, vb, fb, qtc_target, es_sellada, base_name):
+def graficar_spl(fs, qts, vas, vb, fb, qtc_target, es_caja_cerrada, base_name):
     freqs = list(range(10, 501))
     dbs = []
     for f in freqs:
-        if es_sellada:
+        if es_caja_cerrada:
             fc = fs * (qtc_target / qts)
             x = f / fc
             den = math.sqrt((1 - x**2)**2 + (x / qtc_target)**2)
@@ -87,7 +87,7 @@ def graficar_spl(fs, qts, vas, vb, fb, qtc_target, es_sellada, base_name):
     plt.xlim(10, 500)
     plt.ylim(-20, 5)
     plt.grid(True, which="both", ls="-", alpha=0.3)
-    plt.title(f"Respuesta de Frecuencia (SPL) - {'Sellada' if es_sellada else 'Bass Reflex'}")
+    plt.title(f"Respuesta de Frecuencia (SPL) - {'Caja Cerrada/Aperiódica' if es_caja_cerrada else 'Bass Reflex'}")
     plt.xlabel("Frecuencia (Hz)")
     plt.ylabel("Amplitud Relativa (dB)")
     plt.legend()
@@ -116,7 +116,7 @@ def calcular_offset(w_ext, w_int, diam_pulg):
         
     return offset_final, offset_ideal, offset_maximo, alerta
 
-def renderizar_esquemas(base_name, variante, d_int, w_int, h_int, espesor, offset_cm, es_sellada, param_puerto):
+def renderizar_esquemas(base_name, variante, d_int, w_int, h_int, espesor, offset_cm, es_caja_cerrada, param_puerto):
     d_ext = round(d_int + (2 * espesor), 1)
     h_ext = round(h_int + (2 * espesor), 1)
     w_ext = round(w_int + (2 * espesor), 1)
@@ -136,9 +136,16 @@ def renderizar_esquemas(base_name, variante, d_int, w_int, h_int, espesor, offse
     agregar_panel(ax, 0, 0, d_ext, espesor) 
     agregar_panel(ax, 0, h_ext - espesor, d_ext, espesor) 
     
-    if es_sellada:
+    if es_caja_cerrada:
         agregar_panel(ax, 0, espesor, espesor, h_int) 
         agregar_panel(ax, d_ext - espesor, espesor, espesor, h_int)
+        if param_puerto.get('es_aperiodica', False):
+            diam_ap = param_puerto.get('diam_ap', 5.0)
+            y_centro_vent = espesor + (h_int * 0.5)
+            y_vent_inf = y_centro_vent - (diam_ap / 2.0)
+            ax.add_patch(patches.Rectangle((d_ext - espesor, y_vent_inf), espesor, diam_ap, color='white', zorder=4))
+            ax.add_patch(patches.Rectangle((d_ext - espesor, y_vent_inf), espesor, diam_ap, fill=False, hatch='///', edgecolor='red', zorder=5))
+            ax.text(d_ext + 0.5, y_centro_vent, "Variovent", color='red', fontsize=8, va='center', rotation=270, zorder=6)
     else:
         if variante == "MDF":
             h_p = param_puerto['h_puerto']
@@ -190,8 +197,8 @@ def renderizar_esquemas(base_name, variante, d_int, w_int, h_int, espesor, offse
         agregar_panel(ax_obj, espesor, 0, w_int, espesor)
         agregar_panel(ax_obj, espesor, h_ext - espesor, w_int, espesor)
         
-        h_frontal = round(h_int - param_puerto.get('h_puerto', 0.0) if variante == "MDF" and not es_sellada else h_int, 1)
-        y_base_baffle = round(espesor + param_puerto.get('h_puerto', 0.0) if variante == "MDF" and not es_sellada else espesor, 1)
+        h_frontal = round(h_int - param_puerto.get('h_puerto', 0.0) if variante == "MDF" and not es_caja_cerrada else h_int, 1)
+        y_base_baffle = round(espesor + param_puerto.get('h_puerto', 0.0) if variante == "MDF" and not es_caja_cerrada else espesor, 1)
         agregar_panel(ax_obj, espesor, y_base_baffle, w_int, h_frontal)
         
         centro_x = round((w_ext / 2) + x_shift, 1)
@@ -206,7 +213,7 @@ def renderizar_esquemas(base_name, variante, d_int, w_int, h_int, espesor, offse
         ax_obj.add_patch(patches.Circle((centro_x, centro_y_tweeter), radio_t, linewidth=1.5, edgecolor='#333333', facecolor='#1A1A1A', zorder=4))
         ax_obj.add_patch(patches.Circle((centro_x, centro_y_tweeter), radio_t * 0.6, linewidth=1, edgecolor='#222222', facecolor='#2F2F2F', zorder=5))
         
-        if not es_sellada:
+        if not es_caja_cerrada:
             if variante == "MDF":
                 h_p = param_puerto['h_puerto']
                 ax_obj.text(w_ext / 2, espesor + (h_p / 2), f"Reflex: {h_p:.1f} cm", color='black', ha='center', va='center', fontsize=9, zorder=6)
@@ -215,6 +222,11 @@ def renderizar_esquemas(base_name, variante, d_int, w_int, h_int, espesor, offse
                 centro_y_puerto = round(espesor + (h_int * 0.25), 1)
                 ax_obj.add_patch(patches.Circle((w_ext / 2, centro_y_puerto), d_pvc / 2, linewidth=1, edgecolor='#555555', facecolor='#111111', alpha=0.3, zorder=3, linestyle='--'))
                 ax_obj.text(w_ext / 2, centro_y_puerto, f"PVC Atrás", color='#333333', ha='center', va='center', fontsize=8, zorder=6)
+        elif param_puerto.get('es_aperiodica', False):
+            diam_ap = param_puerto.get('diam_ap', 5.0)
+            centro_y_vent = round(espesor + (h_ext * 0.5), 1)
+            ax_obj.add_patch(patches.Circle((w_ext / 2, centro_y_vent), diam_ap / 2, linewidth=1, edgecolor='red', facecolor='#222222', alpha=0.3, zorder=3, linestyle='--'))
+            ax_obj.text(w_ext / 2, centro_y_vent, f"Válvula {diam_ap}cm (Atrás)", color='red', ha='center', va='center', fontsize=8, zorder=6)
 
     dibujar_frontal(ax_l, offset_cm, "Caja Izquierda (L)")
     dibujar_frontal(ax_r, -offset_cm, "Caja Derecha (R)")
@@ -264,14 +276,6 @@ def main():
         fs, sd, vas, qts = p['fs'], p['sd'], p['vas'], p['qts']
         base_name = os.path.basename(archivos[0]).replace(".txt", "")
 
-    # --- VALIDACIÓN ELECTROMECÁNICA ESTRICTA ---
-    if qts > 0.80:
-        print(f"\n[!] ERROR DE INGENIERÍA (Qts = {qts}): Parámetro fuera de límite viable.")
-        print("[!] El motor magnético es demasiado débil para controlar el cono dentro de un gabinete.")
-        print("[!] Transductores con Qts > 0.80 están restringidos a diseños Open Baffle (Bafle Abierto).")
-        print("[!] Simulación abortada para prevenir la construcción de un sistema con anomalías resonantes.")
-        sys.exit(1)
-
     try:
         espesor_cm = float(input("\nEspesor del MDF (mm): ")) / 10.0
         diam_pulg = float(input("Diámetro transductor mayor (pulg) [Ej: 5.25]: ") or "5.25")
@@ -282,15 +286,27 @@ def main():
     phi = (1.0 + math.sqrt(5.0)) / 2.0
     root_phi = math.sqrt(phi)
     
-    es_sellada = qts >= 0.55
-    qtc_target = max(0.90, qts * 1.15) if es_sellada else 0.0
-    
-    if es_sellada:
+    es_aperiodica = qts > 0.80
+    es_sellada = qts >= 0.55 and not es_aperiodica
+    es_caja_cerrada = es_sellada or es_aperiodica
+    diam_ap = 0.0
+
+    if es_aperiodica:
+        modo_alineamiento = "Topología Aperiódica (Variovent)"
+        alfa = 1.5
+        vb_neto = round(vas / alfa, 1)
+        fb = 0.0
+        qtc_target = 0.707 
+        area_ap = round(sd * 0.25, 1) 
+        diam_ap = round(math.sqrt((4 * area_ap) / math.pi), 1)
+    elif es_sellada:
+        qtc_target = max(0.90, qts * 1.15)
         alfa = round((qtc_target / qts)**2 - 1.0, 3)
         vb_neto = round(vas / alfa, 1)
         fb = 0.0
         modo_alineamiento = "Suspensión Acústica (Sellada)"
     else:
+        qtc_target = 0.0
         if qts >= 0.42:
             modo_alineamiento = "EBS Dinámico"
             vb_neto = round((2.0 - (1.0 / phi)) * 15.0 * vas * (math.pow(qts, 2.87)), 1)
@@ -298,8 +314,8 @@ def main():
             fb = round(round(max(0.5, min(0.9, 0.9 * qts / math.sqrt(alfa))), 2) * fs, 1)
         else:
             modo_alineamiento = "QB3 (Numérico)"
-            vb_neto, fb = solucionador_numerico_thiele_small(qts, vas, fs)
-            vb_neto, fb = round(vb_neto, 1), round(fb, 1)
+            vb_neto, fb_raw = solucionador_numerico_thiele_small(qts, vas, fs)
+            vb_neto, fb = round(vb_neto, 1), round(fb_raw, 1)
 
     # --- GEOMETRÍA A: MDF SLOTTED ---
     h_pmdf = l_pmdf = v_mdf_p = v_aire_mdf = a_pmdf = 0.0
@@ -307,7 +323,7 @@ def main():
     tipo_pmdf = "Caja Sellada"
     l_mdf_recto = l_falso_piso = l_falso_respaldo = l_falso_techo = 0.0
     
-    if not es_sellada:
+    if not es_caja_cerrada:
         w_int_est = round(((vb_neto * 1000.0) / (phi ** 1.5)) ** (1.0 / 3.0), 1)
         d_int_est = round(w_int_est * root_phi, 1)
         
@@ -333,12 +349,11 @@ def main():
     d_mdf = round(w_mdf * root_phi, 1)
     h_mdf = round(w_mdf * phi, 1)
     
-    # Determinar cortes de laberinto MDF
     cortes_mdf = [["4x Laterales", round(h_mdf+(2*espesor_cm),1), round(d_mdf+(2*espesor_cm),1)],
                   ["4x Sup/Inf", w_mdf, round(d_mdf+(2*espesor_cm),1)],
                   ["2x Panel Trasero", h_mdf, w_mdf],
                   ["2x Panel Frontal", round(h_mdf - h_pmdf,1), w_mdf]]
-    if not es_sellada:
+    if not es_caja_cerrada:
         l_falso_piso = round(d_mdf - h_pmdf, 1)
         l_req_int = round(l_pmdf - espesor_cm, 1)
         if l_req_int <= l_falso_piso + 0.1:
@@ -365,7 +380,7 @@ def main():
     l_pvc = v_pvc_despl = d_pvc = 0.0
     estado_pvc = "N/A"
     
-    if not es_sellada:
+    if not es_caja_cerrada:
         tubo_pvc = next((t for t in PVC_MERCADO if math.pi*((t["int"]/2.0)**2) >= 0.2*sd), PVC_MERCADO[-1])
         d_pvc = tubo_pvc["int"]
         a_real = math.pi * ((d_pvc / 2.0)**2)
@@ -387,15 +402,15 @@ def main():
 
     # --- RENDERIZADO Y PDF ---
     if GRAFICOS_DISPONIBLES:
-        ruta_spl = graficar_spl(fs, qts, vas, vb_neto, fb, qtc_target, es_sellada, base_name)
+        ruta_spl = graficar_spl(fs, qts, vas, vb_neto, fb, qtc_target, es_caja_cerrada, base_name)
         graficos_gen.append(ruta_spl)
         
-        r_mdf_lat, r_mdf_front = renderizar_esquemas(base_name, "MDF", d_mdf, w_mdf, h_mdf, espesor_cm, off_m_val, es_sellada, 
-                                                     {'h_puerto':h_pmdf, 'l_puerto':l_pmdf, 'tipo':tipo_pmdf, 'l_falso_piso':l_falso_piso, 'l_falso_respaldo':l_falso_respaldo, 'l_falso_techo':l_falso_techo})
+        r_mdf_lat, r_mdf_front = renderizar_esquemas(base_name, "MDF", d_mdf, w_mdf, h_mdf, espesor_cm, off_m_val, es_caja_cerrada, 
+                                                     {'h_puerto':h_pmdf, 'l_puerto':l_pmdf, 'tipo':tipo_pmdf, 'l_falso_piso':l_falso_piso, 'l_falso_respaldo':l_falso_respaldo, 'l_falso_techo':l_falso_techo, 'es_aperiodica': es_aperiodica, 'diam_ap': diam_ap})
         graficos_gen.extend([r_mdf_lat, r_mdf_front])
         
-        r_pvc_lat, r_pvc_front = renderizar_esquemas(base_name, "PVC", d_pvc_dim, w_pvc, h_pvc, espesor_cm, off_p_val, es_sellada, 
-                                                     {'h_puerto':0.0, 'l_puerto':l_pvc, 'd_pvc':d_pvc})
+        r_pvc_lat, r_pvc_front = renderizar_esquemas(base_name, "PVC", d_pvc_dim, w_pvc, h_pvc, espesor_cm, off_p_val, es_caja_cerrada, 
+                                                     {'h_puerto':0.0, 'l_puerto':l_pvc, 'd_pvc':d_pvc, 'es_aperiodica': es_aperiodica, 'diam_ap': diam_ap})
         graficos_gen.extend([r_pvc_lat, r_pvc_front])
 
     pdf = FPDF()
@@ -410,18 +425,31 @@ def main():
     pdf.cell(0, 8, f"Matriz Termodinámica ({modo_alineamiento})", ln=True)
     pdf.set_font("Arial", '', 11)
     pdf.cell(0, 6, f"Fs: {fs} Hz | Vas: {vas} L | Qts: {qts} | Sd: {sd} cm2", ln=True)
-    pdf.cell(0, 6, f"Vb Neto Ideal: {vb_neto} L | Sintonía (Fb): {fb} Hz", ln=True)
+    if es_aperiodica:
+        pdf.cell(0, 6, f"Vb Neto Ideal: {vb_neto} L | Válvula Resistiva: {diam_ap} cm", ln=True)
+    else:
+        pdf.cell(0, 6, f"Vb Neto Ideal: {vb_neto} L | Sintonía (Fb): {fb} Hz", ln=True)
+        
     if GRAFICOS_DISPONIBLES:
         y_spl = pdf.get_y() + 5
         pdf.image(ruta_spl, x=15, y=y_spl, w=180)
     
-    if es_sellada:
+    if es_caja_cerrada:
         pdf.add_page()
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(0, 10, "Arquitectura Sellada Única", ln=True)
+        titulo = "Arquitectura Aperiódica (Variovent)" if es_aperiodica else "Arquitectura Sellada Única"
+        pdf.cell(0, 10, titulo, ln=True)
         pdf.set_font("Arial", '', 11)
         pdf.cell(0, 6, f"Dimensiones Internas: {w_mdf} x {d_mdf} x {h_mdf} cm", ln=True)
         pdf.cell(0, 6, f"Offset Áureo (Mitigación Difracción): {off_m_val*10} mm", ln=True)
+        if es_aperiodica:
+            pdf.ln(2)
+            pdf.set_text_color(200,0,0)
+            pdf.cell(0, 6, f"Válvula Resistiva: Perforación en panel trasero de {diam_ap} cm de diámetro.", ln=True)
+            pdf.cell(0, 6, "[!] Rellenar el orificio comprimiendo densamente lana mineral o fibra acústica.", ln=True)
+            pdf.set_text_color(0,0,0)
+            pdf.ln(2)
+            
         pdf.ln(5); pdf.set_font("Courier", '', 10)
         for c in cortes_mdf: pdf.cell(0, 6, f"{c[0]:<25} | {c[1]:>5.1f} cm x {c[2]:>5.1f} cm", ln=True)
         if GRAFICOS_DISPONIBLES:

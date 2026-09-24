@@ -1,0 +1,54 @@
+TS Parameters file
+Room EQ V5.40 Beta 135
+Dated: 2026 Sep 19 21:15:59
+From measurement 1 Edifier 4-2 Free Air Sep 19
+
+Zmin 6.26 ohm
+fmin 300 Hz
+f3 808 Hz
+Le(f3) 0.954 mH
+Motional impedance parameters
+R0 103.94 ohm
+CMES 193.6 uF
+L0 13.097 mH
+beta 0.0978 
+omega0 914.6 
+Blocked impedance parameters
+RDC 5.40 ohm
+dR -0.03 ohm
+Re 5.37 ohm
+Leb 0.0 uH
+Le 1.901 mH
+Rss 1055.7 ohm
+Ke 0.1956 S-H
+Thiele-Small parameters
+fs 96.8 Hz
+Qms 5.791
+Qes 0.633
+Qts 0.570
+Fts 169.7
+Mms 7.60 g
+Cms 0.356 mm/N
+Rms 0.798 kg/s
+Vas 1.87 litres
+Bl 6.264 Tm
+Eta 0.26 %
+Lp (1W/1m) 86.33 dB
+Dd 8.80 cm
+Sd 60.8 cm^2
+Added mass measurement: 1 Edifier 4-2 Added Mass Sep 19
+Added mass 16.900 g
+Air temperature 20.0 C
+Air pressure 1013.25 mB
+Air density 1.2041 kg/m^3
+Speed of sound 343.2 m/s
+Simplified model parameters
+RE 5.374 ohm
+LE 246.2 uH
+RES 49.20 ohm
+CMES 193.6 uF
+LCES 13.97 mH
+R2 28.33 ohm
+L2 498.5 uH
+R3 4.81 ohm
+L3 762.3 uH

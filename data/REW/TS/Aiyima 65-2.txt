@@ -1,0 +1,54 @@
+TS Parameters file
+Room EQ V5.40 Beta 135
+Dated: 2026 Sep 19 21:19:14
+From measurement 1 Aiyima 65-2 Free Air Sep 19
+
+Zmin 7.18 ohm
+fmin 197 Hz
+f3 2200 Hz
+Le(f3) 0.362 mH
+Motional impedance parameters
+R0 16.39 ohm
+CMES 933.9 uF
+L0 5.685 mH
+beta 0.0349 
+omega0 644.5 
+Blocked impedance parameters
+RDC 7.00 ohm
+dR -0.01 ohm
+Re 6.99 ohm
+Leb 22.6 uH
+Le 0.658 mH
+Rss 100000.0 ohm
+Ke 0.0863 S-H
+Thiele-Small parameters
+fs 68.3 Hz
+Qms 5.382
+Qes 2.804
+Qts 1.843
+Fts 37.1
+Mms 9.45 g
+Cms 0.574 mm/N
+Rms 0.754 kg/s
+Vas 14.35 litres
+Bl 3.180 Tm
+Eta 0.16 %
+Lp (1W/1m) 84.19 dB
+Dd 13.00 cm
+Sd 132.7 cm^2
+Added mass measurement: 1 Aiyima 65-2 Added Mass Sep 19
+Added mass 16.900 g
+Air temperature 20.0 C
+Air pressure 1013.25 mB
+Air density 1.2041 kg/m^3
+Speed of sound 343.2 m/s
+Simplified model parameters
+RE 6.993 ohm
+LE 135.7 uH
+RES 13.42 ohm
+CMES 933.9 uF
+LCES 5.81 mH
+R2 11.76 ohm
+L2 187.2 uH
+R3 1.75 ohm
+L3 244.4 uH

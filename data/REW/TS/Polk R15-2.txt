@@ -1,0 +1,54 @@
+TS Parameters file
+Room EQ V5.40 Beta 135
+Dated: 2026 Sep 19 21:09:38
+From measurement 1 Polk_R15-2 Free Air Sep 19
+
+Zmin 3.60 ohm
+fmin 276 Hz
+f3 984 Hz
+Le(f3) 0.403 mH
+Motional impedance parameters
+R0 34.00 ohm
+CMES 499.1 uF
+L0 5.056 mH
+beta 0.0306 
+omega0 935.1 
+Blocked impedance parameters
+RDC 3.30 ohm
+dR -0.02 ohm
+Re 3.28 ohm
+Leb 26.3 uH
+Le 0.742 mH
+Rss 100000.0 ohm
+Ke 0.0634 S-H
+Thiele-Small parameters
+fs 99.3 Hz
+Qms 8.061
+Qes 1.022
+Qts 0.907
+Fts 109.5
+Mms 8.56 g
+Cms 0.300 mm/N
+Rms 0.662 kg/s
+Vas 4.14 litres
+Bl 4.141 Tm
+Eta 0.39 %
+Lp (1W/1m) 88.03 dB
+Dd 11.20 cm
+Sd 98.5 cm^2
+Added mass measurement: 1 Polk_R15-2 Added Mass Sep 19
+Added mass 16.900 g
+Air temperature 20.0 C
+Air pressure 1013.25 mB
+Air density 1.2041 kg/m^3
+Speed of sound 343.2 m/s
+Simplified model parameters
+RE 3.282 ohm
+LE 109.7 uH
+RES 25.90 ohm
+CMES 499.1 uF
+LCES 5.15 mH
+R2 9.96 ohm
+L2 165.3 uH
+R3 1.90 ohm
+L3 314.1 uH
